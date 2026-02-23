@@ -14,6 +14,7 @@ import time
 import sys
 import traceback
 import atexit
+import os
 
 
 LOG_PATH = Path("barco_automation.log")
@@ -104,15 +105,43 @@ with open(json_path, "w", encoding="utf-8") as f:
 
 print(f"✅ Готово! Сохранено {len(schedule)} фильмов в файл {json_path}")
 
-chromedriver_path = "/opt/homebrew/bin/chromedriver"
-chromedriver_path = r"C:\Users\Ust-Kinel\Desktop\autometization\chromedriver-win64\chromedriver.exe"
-
-
 options = Options()
 options.add_argument("--start-maximized")
 options.add_argument("--disable-blink-features=AutomationControlled")
 
-driver = webdriver.Chrome(service=Service(chromedriver_path), options=options)
+driver = None
+env_driver_path = os.getenv("CHROMEDRIVER_PATH")
+fallback_driver_paths = [
+    Path(r"C:\Users\Ust-Kinel\Desktop\autometization\chromedriver-win64\chromedriver.exe"),
+    Path("/opt/homebrew/bin/chromedriver"),
+]
+
+if env_driver_path:
+    fallback_driver_paths.insert(0, Path(env_driver_path))
+
+try:
+    # Selenium Manager подбирает совместимый драйвер под текущий Chrome.
+    print("Пробуем запуск Chrome через Selenium Manager (автоподбор драйвера)...")
+    driver = webdriver.Chrome(options=options)
+    print("✅ Chrome запущен через Selenium Manager.")
+except Exception as e:
+    print(f"⚠️ Selenium Manager не сработал: {e}")
+    for candidate in fallback_driver_paths:
+        if not candidate.exists():
+            continue
+        try:
+            print(f"Пробуем локальный ChromeDriver: {candidate}")
+            driver = webdriver.Chrome(service=Service(str(candidate)), options=options)
+            print(f"✅ Chrome запущен с локальным ChromeDriver: {candidate}")
+            break
+        except Exception as fallback_error:
+            print(f"⚠️ Не удалось запустить через {candidate}: {fallback_error}")
+
+if driver is None:
+    raise RuntimeError(
+        "Не удалось запустить Chrome. Обновите ChromeDriver до версии вашего Chrome "
+        "или задайте корректный путь в переменной CHROMEDRIVER_PATH."
+    )
 
 driver.get("https://192.168.100.2:43744")
 
