@@ -781,7 +781,7 @@ for date, shows in grouped_schedule.items():
             print(f"❗ Ошибка при установке времени: {e}")
             close_datetime_modal(driver)
             continue
-
+            # Код ИИ
         # Подтверждение
         try:
             clicked = click_visible_id(driver, "confirmDateTimeBtn", retries=5)
