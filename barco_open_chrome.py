@@ -158,6 +158,34 @@ window.scrollTo(0, 0);
         pass
 
 
+def normalize_title(text):
+    if text is None:
+        return ""
+    t = text.lower()
+    t = re.sub(r"[^a-zа-я0-9\s]+", " ", t, flags=re.IGNORECASE)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
+
+
+def titles_match(expected, actual):
+    e = normalize_title(expected)
+    a = normalize_title(actual)
+    if not e or not a:
+        return False
+    if e in a or a in e:
+        return True
+    # Try dropping last letter in last word (Ушаков/Ушакова)
+    e_parts = e.split()
+    if e_parts:
+        e_last = e_parts[-1]
+        if len(e_last) > 3:
+            e_parts[-1] = e_last[:-1]
+            e2 = " ".join(e_parts)
+            if e2 in a:
+                return True
+    return False
+
+
 def open_menu_show(driver, wait, target_block):
     for _ in range(3):
         try:
@@ -431,7 +459,7 @@ for date, shows in grouped_schedule.items():
 
             found = False
             for item in show_items:
-                if show["title"] in item.text:
+                if titles_match(show["title"], item.text):
                     item.click()
                     found = True
                     break
@@ -546,13 +574,23 @@ for date, shows in grouped_schedule.items():
         time.sleep(5)
 
         try:
-               move_to = wait.until(EC.visibility_of_element_located((By.ID, "moveTo")))
-               driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", move_to)
-               move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-               try:
-                  move_to.click()
-               except Exception:
-                  driver.execute_script("arguments[0].click();", move_to)
+               clicked = False
+               for _ in range(3):
+                   try:
+                       move_to = wait.until(EC.presence_of_element_located((By.ID, "moveTo")))
+                       driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", move_to)
+                       move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
+                       try:
+                           move_to.click()
+                       except Exception:
+                           driver.execute_script("arguments[0].click();", move_to)
+                       clicked = True
+                       break
+                   except Exception:
+                       time.sleep(0.5)
+                       continue
+               if not clicked:
+                   raise RuntimeError("moveTo not clickable after retries")
                print("✅ Клик по moveTo прошёл")
         except Exception as e:
                print(f"❗ Ошибка при клике по moveTo: {e}")
