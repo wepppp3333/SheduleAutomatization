@@ -54,6 +54,23 @@ def _css_px_to_float(value):
         return 0.0
 
 
+def click_top_slot(driver, day_view):
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", day_view)
+    driver.execute_script(
+        """
+const day = arguments[0];
+const rect = day.getBoundingClientRect();
+const x = rect.width * 0.6;
+const y = 6;
+const clientX = rect.left + x;
+const clientY = rect.top + y;
+const target = document.elementFromPoint(clientX, clientY) || day;
+target.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX, clientY}));
+""",
+        day_view,
+    )
+
+
 def click_time_slot(driver, day_view, time_str):
     hour, minute = [int(x) for x in time_str.split(":")]
 
@@ -298,22 +315,24 @@ grouped_schedule = defaultdict(list)
 for item in schedule_data:
     grouped_schedule[item["date"]].append(item)
 
-# Находим все dayHeader
-day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
-day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
-
 for date, shows in grouped_schedule.items():
     print(f"\n📅 Обрабатываем дату: {date}")
 
     # Ищем нужный dayHeader по дате
     found_index = None
-    for i, header in enumerate(day_headers):
-        header_date_text = header.find_element(By.CLASS_NAME, "date").text.strip()
-        if header_date_text.replace("/", ".") == date:
-            found_index = i
-            header.click()
-            print(f"✅ Найдена дата {date} в расписании, индекс: {i}")
-            break
+    day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
+    for i in range(len(day_headers)):
+        try:
+            header = day_headers[i]
+            header_date_text = header.find_element(By.CLASS_NAME, "date").text.strip()
+            if header_date_text.replace("/", ".") == date:
+                found_index = i
+                header.click()
+                print(f"✅ Найдена дата {date} в расписании, индекс: {i}")
+                break
+        except StaleElementReferenceException:
+            day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
+            continue
 
     if found_index is None:
         print(f"⚠️ Дата {date} не найдена на странице. Пропускаем.")
@@ -330,7 +349,7 @@ for date, shows in grouped_schedule.items():
             # Обновляем day_view и кликаем по таймлайну в нужное время
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
-            click_time_slot(driver, day_view, show["time"])
+            click_top_slot(driver, day_view)
             open_show_popover(driver, wait, day_view)
         except Exception as e:
             print(f"❗ Ошибка при клике на таймлайн: {e}")
