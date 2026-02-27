@@ -17,6 +17,7 @@ import sys
 import traceback
 import atexit
 import os
+from difflib import SequenceMatcher
 
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -210,6 +211,12 @@ def titles_match(expected, actual):
         return False
     if e in a or a in e:
         return True
+    # Require shared words when exact contains check fails.
+    e_words = [w for w in e.split() if len(w) > 2]
+    a_words = [w for w in a.split() if len(w) > 2]
+    common = set(e_words) & set(a_words)
+    if e_words and len(common) >= max(1, len(e_words) - 1):
+        return True
     # Try dropping last letter in last word (Ушаков/Ушакова)
     e_parts = e.split()
     if e_parts:
@@ -220,6 +227,24 @@ def titles_match(expected, actual):
             if e2 in a:
                 return True
     return False
+
+
+def title_similarity(expected, actual):
+    e = normalize_title(expected)
+    a = normalize_title(actual)
+    if not e or not a:
+        return 0.0
+    if e in a or a in e:
+        return 1.0
+
+    e_words = [w for w in e.split() if len(w) > 2]
+    a_words = [w for w in a.split() if len(w) > 2]
+    overlap = 0.0
+    if e_words:
+        overlap = len(set(e_words) & set(a_words)) / len(set(e_words))
+
+    seq_ratio = SequenceMatcher(None, e, a).ratio()
+    return max(overlap, seq_ratio)
 
 
 def wait_for_show_block(driver, index, title, timeout_sec=8):
@@ -276,6 +301,49 @@ return true;
     )
     if not clicked:
         raise RuntimeError("menuShow not found after retries")
+
+
+def click_move_to(driver, wait, target_block):
+    for _ in range(5):
+        try:
+            open_menu_show(driver, wait, target_block)
+            time.sleep(0.3)
+            move_candidates = driver.find_elements(By.ID, "moveTo")
+            for candidate in move_candidates:
+                try:
+                    if not candidate.is_displayed():
+                        continue
+                    cls = (candidate.get_attribute("class") or "").lower()
+                    if "disabled" in cls:
+                        continue
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", candidate)
+                    try:
+                        candidate.click()
+                    except Exception:
+                        driver.execute_script("arguments[0].click();", candidate)
+                    return True
+                except Exception:
+                    continue
+
+            clicked = driver.execute_script(
+                """
+const nodes = Array.from(document.querySelectorAll('#moveTo'));
+for (const n of nodes) {
+  const style = window.getComputedStyle(n);
+  if (style.display === 'none' || style.visibility === 'hidden') continue;
+  if (n.classList.contains('disabled')) continue;
+  n.click();
+  return true;
+}
+return false;
+"""
+            )
+            if clicked:
+                return True
+        except Exception:
+            pass
+        time.sleep(0.4)
+    return False
 
 
 class Tee:
@@ -517,15 +585,21 @@ for date, shows in grouped_schedule.items():
             show_list = wait.until(EC.presence_of_element_located((By.ID, "listOfShows")))
             show_items = show_list.find_elements(By.TAG_NAME, "li")
 
-            found = False
+            best_item = None
+            best_score = 0.0
             for item in show_items:
-                if titles_match(show["title"], item.text):
-                    item.click()
-                    found = True
-                    break
-            if not found:
+                score = title_similarity(show["title"], item.text)
+                if score > best_score:
+                    best_score = score
+                    best_item = item
+
+            if best_item is None or best_score < 0.55:
                 print(f"❗ Фильм '{show['title']}' не найден в списке")
+                available_titles = [normalize_title(i.text) for i in show_items if i.text.strip()]
+                print(f"Доступные в списке (normalized): {available_titles}")
                 continue
+            best_item.click()
+            print(f"Совпадение фильма: '{show['title']}' -> '{best_item.text.strip()}' (score={best_score:.2f})")
 
             ok_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".popover-inner .ok.btn")))
             try:
@@ -548,6 +622,7 @@ for date, shows in grouped_schedule.items():
                continue
 
         try:
+               time.sleep(10)
                hover_element(driver, target_block)
                move_btn = target_block.find_element(By.CLASS_NAME, "moveRowBtn")
                driver.execute_script("arguments[0].scrollIntoView(true);", move_btn)
@@ -560,7 +635,7 @@ for date, shows in grouped_schedule.items():
                print(f"❗ Ошибка при клике по moveRowBtn: {e}")
                continue
 
-        time.sleep(2)
+        time.sleep(10)
 
         try:
                open_menu_show(driver, wait, target_block)
@@ -573,24 +648,10 @@ for date, shows in grouped_schedule.items():
                time.sleep(10)
                continue
 
-        time.sleep(5)
+        time.sleep(1)
 
         try:
-               clicked = False
-               for _ in range(3):
-                   try:
-                       move_to = wait.until(EC.presence_of_element_located((By.ID, "moveTo")))
-                       driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", move_to)
-                       move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-                       try:
-                           move_to.click()
-                       except Exception:
-                           driver.execute_script("arguments[0].click();", move_to)
-                       clicked = True
-                       break
-                   except Exception:
-                       time.sleep(0.5)
-                       continue
+               clicked = click_move_to(driver, wait, target_block)
                if not clicked:
                    raise RuntimeError("moveTo not clickable after retries")
                print("✅ Клик по moveTo прошёл")
@@ -654,5 +715,5 @@ for date, shows in grouped_schedule.items():
 
    
 
-time.sleep(200)
+time.sleep(3)
 driver.quit()
