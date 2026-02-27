@@ -346,6 +346,44 @@ return false;
     return False
 
 
+def clear_blocking_modal_backdrop(driver):
+    try:
+        driver.execute_script(
+            """
+document.querySelectorAll('.modal-backdrop').forEach(el => el.remove());
+"""
+        )
+    except Exception:
+        pass
+
+
+def close_datetime_modal(driver):
+    try:
+        # Prefer explicit close controls if available.
+        close_btns = driver.find_elements(By.CSS_SELECTOR, "#dateTimeModal .close, #dateTimeModal [data-dismiss='modal']")
+        for btn in close_btns:
+            try:
+                if btn.is_displayed():
+                    btn.click()
+                    return
+            except Exception:
+                continue
+        # Fallback: ESC key and forced hide.
+        driver.find_element(By.TAG_NAME, "body").send_keys("\uE00C")
+        driver.execute_script(
+            """
+const modal = document.getElementById('dateTimeModal');
+if (modal) {
+  modal.classList.remove('in');
+  modal.style.display = 'none';
+}
+"""
+        )
+    except Exception:
+        pass
+    clear_blocking_modal_backdrop(driver)
+
+
 class Tee:
     def __init__(self, *streams):
         self.streams = streams
@@ -558,6 +596,7 @@ for date, shows in grouped_schedule.items():
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
 
         try:
+            clear_blocking_modal_backdrop(driver)
             # Обновляем day_view и кликаем по таймлайну в нужное время
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
@@ -598,8 +637,17 @@ for date, shows in grouped_schedule.items():
                 available_titles = [normalize_title(i.text) for i in show_items if i.text.strip()]
                 print(f"Доступные в списке (normalized): {available_titles}")
                 continue
-            best_item.click()
-            print(f"Совпадение фильма: '{show['title']}' -> '{best_item.text.strip()}' (score={best_score:.2f})")
+            best_link = None
+            try:
+                best_link = best_item.find_element(By.TAG_NAME, "a")
+            except Exception:
+                best_link = best_item
+            try:
+                best_link.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", best_link)
+            matched_label = (best_link.text or best_item.text or "").strip()
+            print(f"Совпадение фильма: '{show['title']}' -> '{matched_label}' (score={best_score:.2f})")
 
             ok_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".popover-inner .ok.btn")))
             try:
@@ -685,19 +733,28 @@ for date, shows in grouped_schedule.items():
             hour_str, minute_str = show["time"].split(":")
             # Час
             wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "timepicker-hour"))).click()
+            hour_set = False
             for cell in driver.find_elements(By.CLASS_NAME, "hour"):
                 if cell.text.strip() == hour_str:
                     cell.click()
+                    hour_set = True
                     break
+            if not hour_set:
+                raise RuntimeError(f"Час {hour_str} не найден в timepicker")
 
             # Минуты
             wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "timepicker-minute"))).click()
+            minute_set = False
             for cell in driver.find_elements(By.CLASS_NAME, "minute"):
                 if cell.text.strip() == minute_str:
                     cell.click()
+                    minute_set = True
                     break
+            if not minute_set:
+                raise RuntimeError(f"Минута {minute_str} не найдена в timepicker")
         except Exception as e:
             print(f"❗ Ошибка при установке времени: {e}")
+            close_datetime_modal(driver)
             continue
 
         # Подтверждение
@@ -707,6 +764,7 @@ for date, shows in grouped_schedule.items():
             print(f"✅ Фильм '{show['title']}' добавлен в расписание.")
         except Exception as e:
             print(f"❗ Ошибка при подтверждении времени: {e}")
+            close_datetime_modal(driver)
             continue
         time.sleep(10)
         print(f"✅ Встал на паузу на 10 секунд")
