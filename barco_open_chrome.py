@@ -346,6 +346,31 @@ return false;
     return False
 
 
+def click_visible_id(driver, element_id, retries=4):
+    for _ in range(retries):
+        try:
+            candidates = driver.find_elements(By.ID, element_id)
+            for candidate in candidates:
+                try:
+                    if not candidate.is_displayed():
+                        continue
+                    cls = (candidate.get_attribute("class") or "").lower()
+                    if "disabled" in cls:
+                        continue
+                    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", candidate)
+                    try:
+                        candidate.click()
+                    except Exception:
+                        driver.execute_script("arguments[0].click();", candidate)
+                    return True
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        time.sleep(0.3)
+    return False
+
+
 def clear_blocking_modal_backdrop(driver):
     try:
         driver.execute_script(
@@ -759,8 +784,17 @@ for date, shows in grouped_schedule.items():
 
         # Подтверждение
         try:
-            confirm_btn = wait.until(EC.element_to_be_clickable((By.ID, "confirmDateTimeBtn")))
-            confirm_btn.click()
+            clicked = click_visible_id(driver, "confirmDateTimeBtn", retries=5)
+            if not clicked:
+                raise RuntimeError("confirmDateTimeBtn not clickable")
+            try:
+                WebDriverWait(driver, 5).until(
+                    EC.invisibility_of_element_located((By.ID, "dateTimeModal"))
+                )
+            except Exception:
+                # If modal still visible, try one more click.
+                if not click_visible_id(driver, "confirmDateTimeBtn", retries=2):
+                    raise RuntimeError("confirmDateTimeBtn clicked but modal did not close")
             print(f"✅ Фильм '{show['title']}' добавлен в расписание.")
         except Exception as e:
             print(f"❗ Ошибка при подтверждении времени: {e}")
