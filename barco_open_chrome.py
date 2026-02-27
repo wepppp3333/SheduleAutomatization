@@ -145,6 +145,19 @@ def hover_element(driver, element):
             pass
 
 
+def scroll_timeline_to_top(driver):
+    try:
+        driver.execute_script(
+            """
+const area = document.querySelector('.timLineViewArea');
+if (area) { area.scrollTop = 0; }
+window.scrollTo(0, 0);
+"""
+        )
+    except Exception:
+        pass
+
+
 class Tee:
     def __init__(self, *streams):
         self.streams = streams
@@ -351,6 +364,7 @@ for date, shows in grouped_schedule.items():
     time.sleep(10)
    #  day_view = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))[found_index]
 
+    scroll_timeline_to_top(driver)
 
     for show in shows:
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
@@ -359,6 +373,7 @@ for date, shows in grouped_schedule.items():
             # Обновляем day_view и кликаем по таймлайну в нужное время
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
+            scroll_timeline_to_top(driver)
             click_top_slot(driver, day_view)
             open_show_popover(driver, wait, day_view)
         except Exception as e:
@@ -482,10 +497,12 @@ for date, shows in grouped_schedule.items():
                print(f"❗ Ошибка при клике по moveRowBtn: {e}")
                continue
 
-        time.sleep(10)
+        time.sleep(2)
 
         try:
                hover_element(driver, target_block)
+               menu_show = wait.until(EC.visibility_of_element_located((By.ID, "menuShow")))
+               driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", menu_show)
                menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
                print("✅ menuShow найден")
                try:
@@ -505,8 +522,13 @@ for date, shows in grouped_schedule.items():
         time.sleep(5)
 
         try:
+               move_to = wait.until(EC.visibility_of_element_located((By.ID, "moveTo")))
+               driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", move_to)
                move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-               move_to.click()
+               try:
+                  move_to.click()
+               except Exception:
+                  driver.execute_script("arguments[0].click();", move_to)
                print("✅ Клик по moveTo прошёл")
         except Exception as e:
                print(f"❗ Ошибка при клике по moveTo: {e}")
@@ -563,6 +585,7 @@ for date, shows in grouped_schedule.items():
             continue
         time.sleep(10)
         print(f"✅ Встал на паузу на 10 секунд")
+        scroll_timeline_to_top(driver)
 
 
 
