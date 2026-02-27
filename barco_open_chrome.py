@@ -2,6 +2,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
@@ -43,6 +44,57 @@ def find_excel_file():
     raise FileNotFoundError(
         f"Excel файл с именем 'Рассписание' не найден в папке проекта: {BASE_DIR}"
     )
+
+
+def _css_px_to_float(value):
+    try:
+        return float(str(value).replace("px", "").strip())
+    except Exception:
+        return 0.0
+
+
+def click_time_slot(driver, day_view, time_str):
+    hour_lines = day_view.find_elements(By.CLASS_NAME, "hourLine")
+    if len(hour_lines) < 2:
+        raise RuntimeError("hourLine недостаточно для расчета позиции клика")
+
+    top0 = _css_px_to_float(hour_lines[0].value_of_css_property("top"))
+    top1 = _css_px_to_float(hour_lines[1].value_of_css_property("top"))
+    step = top1 - top0 if top1 > top0 else 80.0
+
+    hour, minute = [int(x) for x in time_str.split(":")]
+    y = top0 + (hour * step) + (minute / 60.0) * step + 2
+
+    height = day_view.size.get("height", 0)
+    width = day_view.size.get("width", 0)
+    if height:
+        y = max(2, min(y, height - 2))
+    x = 60
+    if width:
+        x = max(2, min(width * 0.6, width - 2))
+
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", day_view)
+
+    try:
+        ActionChains(driver).move_to_element_with_offset(day_view, x, y).click().perform()
+    except Exception:
+        driver.execute_script(
+            """
+const el = arguments[0];
+const x = arguments[1];
+const y = arguments[2];
+const rect = el.getBoundingClientRect();
+const clientX = rect.left + x;
+const clientY = rect.top + y;
+const target = document.elementFromPoint(clientX, clientY);
+if (target) {
+  target.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX, clientY}));
+}
+""",
+            day_view,
+            x,
+            y,
+        )
 
 
 class Tee:
@@ -254,27 +306,12 @@ for date, shows in grouped_schedule.items():
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
 
         try:
-            # Обновляем day_view и hour_lines
+            # Обновляем day_view и кликаем по таймлайну в нужное время
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
-
-            hour_lines = day_view.find_elements(By.CLASS_NAME, "hourLine")
-
-            if len(hour_lines) >= 3:
-               target_hour_line = hour_lines[-3]
-            elif len(hour_lines) >= 2:
-               target_hour_line = hour_lines[-2]
-            elif len(hour_lines) == 1:
-               target_hour_line = hour_lines[0]
-            else:
-               print("❗ hour_lines пустой, пропускаем этот фильм.")
-               continue
-
-            # Скроллим и кликаем
-            driver.execute_script("arguments[0].scrollIntoView(true);", target_hour_line)
-            wait.until(EC.element_to_be_clickable(target_hour_line)).click()
+            click_time_slot(driver, day_view, show["time"])
         except Exception as e:
-            print(f"❗ Ошибка при клике на hourLine: {e}")
+            print(f"❗ Ошибка при клике на таймлайн: {e}")
             continue
 
         # Выбор фильма из выпадающего списка
