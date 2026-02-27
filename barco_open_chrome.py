@@ -119,10 +119,43 @@ return {ok:true, clientX, clientY, x, y: clampedY};
         raise RuntimeError(f"Click time slot failed after retries: {e}")
 
 
-def open_show_popover(driver, wait, day_view):
-    try:
-        return wait.until(EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover")))
-    except Exception:
+def _wait_popover(driver, timeout_sec=2):
+    return WebDriverWait(driver, timeout_sec).until(
+        EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover"))
+    )
+
+
+def open_show_popover(driver, day_view, time_str):
+    # Try multiple click strategies to open the popover
+    for _ in range(3):
+        try:
+            _wait_popover(driver, timeout_sec=1.5)
+            return True
+        except Exception:
+            pass
+
+        try:
+            click_top_slot(driver, day_view)
+        except Exception:
+            pass
+
+        try:
+            _wait_popover(driver, timeout_sec=1.5)
+            return True
+        except Exception:
+            pass
+
+        try:
+            click_time_slot(driver, day_view, time_str)
+        except Exception:
+            pass
+
+        try:
+            _wait_popover(driver, timeout_sec=1.5)
+            return True
+        except Exception:
+            pass
+
         try:
             placeholder = day_view.find_element(By.CLASS_NAME, "showPlaceHolder")
             driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", placeholder)
@@ -132,7 +165,10 @@ def open_show_popover(driver, wait, day_view):
                 driver.execute_script("arguments[0].click();", placeholder)
         except Exception:
             pass
-    return wait.until(EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover")))
+
+        time.sleep(0.3)
+
+    return False
 
 
 def hover_element(driver, element):
@@ -184,6 +220,29 @@ def titles_match(expected, actual):
             if e2 in a:
                 return True
     return False
+
+
+def wait_for_show_block(driver, index, title, timeout_sec=8):
+    end_at = time.time() + timeout_sec
+    while time.time() < end_at:
+        try:
+            day_views = driver.find_elements(By.CLASS_NAME, "dayView")
+            if index >= len(day_views):
+                time.sleep(0.3)
+                continue
+            day_view = day_views[index]
+            show_blocks = day_view.find_elements(By.CLASS_NAME, "rowItem")
+            for block in show_blocks:
+                try:
+                    title_div = block.find_element(By.CLASS_NAME, "title")
+                    if titles_match(title, title_div.text):
+                        return block
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        time.sleep(0.3)
+    return None
 
 
 def open_menu_show(driver, wait, target_block):
@@ -435,8 +494,9 @@ for date, shows in grouped_schedule.items():
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
             scroll_timeline_to_top(driver)
-            click_top_slot(driver, day_view)
-            open_show_popover(driver, wait, day_view)
+            ok = open_show_popover(driver, day_view, show["time"])
+            if not ok:
+                raise RuntimeError("Поповер не открылся после клика по таймлайну")
         except Exception as e:
             print(f"❗ Ошибка при клике на таймлайн: {e}")
             try:
@@ -476,67 +536,9 @@ for date, shows in grouped_schedule.items():
             print(f"❗ Ошибка при выборе фильма: {e}")
             continue
 
-        # Ищем добавленный блок
-      #   try:
-      #       show_blocks = day_view.find_elements(By.CLASS_NAME, "rowItem")
-      #       target_block = None
-      #       for block in show_blocks:
-      #           try:
-      #               title_div = block.find_element(By.CLASS_NAME, "title")
-      #               if show["title"] in title_div.text:
-      #                   target_block = block
-      #                   break
-      #           except:
-      #               continue
-
-      #       if not target_block:
-      #           print(f"❗ Блок с фильмом '{show['title']}' не найден.")
-      #           continue
-      #       print(f"❗ Блок с фильмом '{show['title']}' найден.")
-      #       time.sleep(10)   
-      #       move_btn = target_block.find_element(By.CLASS_NAME, "moveRowBtn")
-      #       driver.execute_script("arguments[0].scrollIntoView(true);", move_btn)
-
-      #       wait.until(EC.element_to_be_clickable(move_btn)).click()
-      #       print("✅ Клик по moveRowBtn прошёл")
-      #       time.sleep(10)
-      #       # ⏱ Ждём появления меню
-      #       menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
-      #       print("✅ menuShow найден")
-      #       try:
-      #          menu_show.click()
-      #       except:
-      #          driver.execute_script("arguments[0].click();", menu_show)
-      #       print("✅ Клик по menuShow прошёл")
-      #       print("✅ menuShow найден")
-      #       time.sleep(5)
-      #       move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-      #       move_to.click()
-      #       print("✅ Клик по moveTo прошёл")             
-      #       # move_btn = target_block.find_element(By.CLASS_NAME, "moveRowBtn")
-      #       # driver.execute_script("arguments[0].scrollIntoView(true);", move_btn)
-      #       # move_btn.click()
-
-      #       # menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
-      #       # menu_show.click()
-      #       # move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-      #       # move_to.click()
-      #   except Exception as e:
-      #       print(f"❗ Ошибка при поиске или нажатии moveRoxwBtn/menuShow/moveTo: {e}")
-      #       continue
 
         try:
-               show_blocks = day_view.find_elements(By.CLASS_NAME, "rowItem")
-               target_block = None
-               for block in show_blocks:
-                  try:
-                        title_div = block.find_element(By.CLASS_NAME, "title")
-                        if show["title"] in title_div.text:
-                           target_block = block
-                           break
-                  except:
-                        continue
-
+               target_block = wait_for_show_block(driver, found_index, show["title"], timeout_sec=8)
                if not target_block:
                   print(f"❗ Блок с фильмом '{show['title']}' не найден.")
                   continue
@@ -648,207 +650,8 @@ for date, shows in grouped_schedule.items():
         time.sleep(10)
         print(f"✅ Встал на паузу на 10 секунд")
         scroll_timeline_to_top(driver)
+        time.sleep(10)
 
-
-
-# Старый код
-# # Поиск сегодняшней даты 
-# today = datetime.now().strftime("%d/%m/%Y")
-# print ("сегодняшняя дата ", today)
-
-# day_headers_shelder = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
-
-
-# today_index = None
-# for i,day_header in enumerate(day_headers_shelder):
-#    date_element = day_header.find_element(By.CLASS_NAME, "date")
-#    date_text = date_element.text.strip()
-#    if date_text == today:
-#       today_index = i
-#       print(f"найдена сегодняшняя дата: {date_text}, кликаем.... Индекс: {today_index}")
-#       day_header.click()
-#       break
-#    else:
-#       print("\033[91mСегодняшняя дата не найдена на странице.\033[0m")
-
-# # Поиск нужного столбца
-# if today_index is None:
-#    print("Сегодняшняя дата не найдена!")
-# else: 
-#     day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
-
-#     today_day_view = day_views[today_index]
-
-#     hour_lines = today_day_view.find_elements(By.CLASS_NAME, "hourLine")
-#     if hour_lines:
-#        last_hour_line = hour_lines[-2]
-#        print(f"Нажимаем на предпоследний hourLine с индексом {len(hour_lines)-2}")
-#        driver.execute_script("arguments[0].scrollIntoView(true);", last_hour_line)
-#        last_hour_line.click()
-#     else:
-#        print("В dayView нет элементов hourLine")
-
-# time.sleep(15)
-# # Добавляем фильм в рассписание
-# time.sleep(15)
-
-# caret_btn = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "caretBtn")))
-# caret_btn.click()
-# print("Клик по списку фильмов")
-
-# show_list = wait.until(EC.presence_of_element_located((By.ID, "listOfShows")))
-# show_items = show_list.find_elements(By.TAG_NAME, "li")
-
-# found = False
-
-# for item in show_items:
-#    text = item.text.strip()
-#    if "Три богатыря" in text:
-#       print(f"Найден пункт: {text}, кликаем")
-#       item.click()
-#       found = True
-#       break
-#    else:
-#       print("\033[91mФильм 'Три богатыря' не найден в списке!\033[0m")
-
-# try: 
-#    ok_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".popover-inner .ok.btn")))
-#    ok_button.click()
-#    print("Кнопка OK нажата")    
-# except Exception as e: 
-#    print(f"\033[91mОшибка при нажатии на OK: {e}\033[0m")
-
-
-
-# # Далее находим наш сформированный фильм
-# try:
-#     print("Ищем блок с фильмом 'Три богатыря' в dayView...")
-#     show_blocks = today_day_view.find_elements(By.CLASS_NAME, "rowItem")
-#     found_block = None
-
-#     for block in show_blocks:
-#         try:
-#             title_div = block.find_element(By.CLASS_NAME, "title")
-#             if "Три богатыря" in title_div.text:
-#                 found_block = block
-#                 break
-#         except:
-#             continue
-
-#     if found_block:
-#         print("✅ Блок с фильмом найден!")
-
-#         move_btn = found_block.find_element(By.CLASS_NAME, "moveRowBtn")
-#         driver.execute_script("arguments[0].scrollIntoView(true);", move_btn)
-#         move_btn.click()
-#         print("✅ Нажата кнопка moveRowBtn")
-
-#         menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
-#         menu_show.click()
-#         print("✅ Нажата кнопка menuShow")
-
-#     else:
-#         print("\033[91m❗ Блок с фильмом 'Три богатыря' не найден в dayView!\033[0m")
-
-# except Exception as e:
-#     print(f"\033[91m❗ Ошибка при попытке нажать moveRowBtn или menuShow: {e}\033[0m")
-
-# try:
-#     move_to = wait.until(EC.element_to_be_clickable((By.ID, "moveTo")))
-#     move_to.click()
-#     print("Клик по Move To выполнен")
-# except Exception as e:
-#    print(f"Ошибка при клике по Move To: {e}")
-#    driver.quit()
-#    exit()
-
-# # Ждем модального окна на с календарем
-# try:
-#    wait.until(EC.presence_of_element_located((By.ID, "dateTimeModal")))
-#    print("Окно выбора даты появилось")
-# except Exception as e:
-#    print(f"Модальное окно не появлось: {e}")
-#    driver.quit()
-#    exit()
-
-# today = str(datetime.today().day)
-
-
-# time.sleep(15)
-# # Ищем даты подходящие 
-# try:
-#     all_days = driver.find_elements(By.CLASS_NAME, "day")
-#     clicked = False
-
-#     for day in all_days:
-#         class_attr = day.get_attribute("class")
-#         day_text = day.text.strip()
-#         print(f"День который нашел: {day_text}")
-#         if day_text == today and "notSelectable" not in class_attr and "new" not in class_attr:
-#             day.click()
-#             print(f"✅ Клик по дню {today} выполнен")
-#             clicked = True
-#             break
-
-#     if not clicked:
-#         print(f"❗ Не удалось найти подходящий день {today} для клика")
-#         driver.quit()
-#         exit()
-# except Exception as e:
-#    print(f"Ошибка при выборе даты: {e}")
-#    driver.quit()
-#    exit()
-   
-# # Установка времени и минут 
-# try:
-#     show_hours = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "timepicker-hour")))
-#     show_hours.click()
-#     print("🔽 Раскрыли выбор часов")
-
-#     hour_table = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "timepicker-hours")))
-#     hour_cells = hour_table.find_elements(By.CLASS_NAME, "hour")
-
-#     for cell in hour_cells:
-#        if cell.text.strip() == "22":
-#           cell.click()
-#           print("Установлен час: 22")
-#           break
-#     else:
-#        print("Час 22 не найден")
-# except Exception as e:
-#    print(f"Ошибка при установке часа: {e}")
-#    driver.quit()
-#    exit()
-
-# try:
-#     show_minutes = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "timepicker-minute")))
-#     show_minutes.click()
-#     print("🔽 Раскрыли выбор минут")
-
-#     minute_table = wait.until(EC.presence_of_element_located((By.CLASS_NAME, "timepicker-minutes")))
-#     minute_cells = minute_table.find_elements(By.CLASS_NAME, "minute")
-
-#     for cell in minute_cells:
-#        if cell.text.strip() == "15":
-#           cell.click()
-#           print("Установлены минуты: 15")
-#           break
-#     else:
-#        print("минуты 15 не найдены")
-# except Exception as e:
-#    print(f"Ошибка при установке минут: {e}")
-#    driver.quit()
-#    exit()
-
-# # Установка времени
-# try:
-#     confirm_btn = wait.until(EC.element_to_be_clickable((By.ID, "confirmDateTimeBtn")))
-#     confirm_btn.click()
-#     print("✅ Время подтверждено, нажата кнопка confirmDateTimeBtn")
-# except Exception as e:
-#     print(f"❗ Ошибка при нажатии confirmDateTimeBtn: {e}")
-#     driver.quit()
-#     exit()
    
 
 time.sleep(200)
