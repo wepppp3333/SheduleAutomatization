@@ -96,6 +96,24 @@ if (target) {
             y,
         )
 
+    return x, y
+
+
+def open_show_popover(driver, wait, day_view):
+    try:
+        return wait.until(EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover")))
+    except Exception:
+        try:
+            placeholder = day_view.find_element(By.CLASS_NAME, "showPlaceHolder")
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", placeholder)
+            try:
+                placeholder.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", placeholder)
+        except Exception:
+            pass
+    return wait.until(EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover")))
+
 
 class Tee:
     def __init__(self, *streams):
@@ -310,6 +328,7 @@ for date, shows in grouped_schedule.items():
             day_views = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))
             day_view = day_views[found_index]
             click_time_slot(driver, day_view, show["time"])
+            open_show_popover(driver, wait, day_view)
         except Exception as e:
             print(f"❗ Ошибка при клике на таймлайн: {e}")
             continue
@@ -318,7 +337,10 @@ for date, shows in grouped_schedule.items():
         try:
             print(f"❗ Выбираем фильм из выпадающего списка")
             caret_btn = wait.until(EC.element_to_be_clickable((By.CLASS_NAME, "caretBtn")))
-            caret_btn.click()
+            try:
+                caret_btn.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", caret_btn)
             show_list = wait.until(EC.presence_of_element_located((By.ID, "listOfShows")))
             show_items = show_list.find_elements(By.TAG_NAME, "li")
 
@@ -333,7 +355,10 @@ for date, shows in grouped_schedule.items():
                 continue
 
             ok_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, ".popover-inner .ok.btn")))
-            ok_button.click()
+            try:
+                ok_button.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", ok_button)
         except Exception as e:
             print(f"❗ Ошибка при выборе фильма: {e}")
             continue
