@@ -17,7 +17,32 @@ import atexit
 import os
 
 
-LOG_PATH = Path("barco_automation.log")
+BASE_DIR = Path(__file__).resolve().parent
+ARTIFACTS_DIR = BASE_DIR / "automation_artifacts"
+SCREENSHOTS_DIR = ARTIFACTS_DIR / "screenshots"
+LOG_PATH = ARTIFACTS_DIR / "barco_automation.log"
+SCHEDULE_JSON_PATH = ARTIFACTS_DIR / "schedule.json"
+
+ARTIFACTS_DIR.mkdir(parents=True, exist_ok=True)
+SCREENSHOTS_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def find_excel_file():
+    preferred_patterns = [
+        "Рассписание*.xlsx",
+        "Рассписание*.xlsm",
+        "Рассписание*.xls",
+        "Расписание*.xlsx",
+        "Расписание*.xlsm",
+        "Расписание*.xls",
+    ]
+    for pattern in preferred_patterns:
+        matches = sorted(BASE_DIR.glob(pattern))
+        if matches:
+            return matches[0]
+    raise FileNotFoundError(
+        f"Excel файл с именем 'Рассписание' не найден в папке проекта: {BASE_DIR}"
+    )
 
 
 class Tee:
@@ -63,13 +88,14 @@ sys.excepthook = _global_excepthook
 
 # Загрузка exel
 # Удаление старого schedule.json если он существует
-if Path("C:/Users/Ust-Kinel/Desktop/autometization/schedule.json").exists():
-    
-    Path("C:/Users/Ust-Kinel/Desktop/autometization/schedule.json").unlink()
+if SCHEDULE_JSON_PATH.exists():
+    SCHEDULE_JSON_PATH.unlink()
     print("🗑️ Старый файл schedule.json удалён")
 else:
     print("Старый json не нашли")
-excel_path = Path("C:/Users/Ust-Kinel/Desktop/autometization/Лукоянов 24.07.2025.xlsx")
+
+excel_path = find_excel_file()
+print(f"Excel для загрузки: {excel_path}")
 
 df = pd.read_excel(excel_path,header=None)
 
@@ -99,7 +125,7 @@ for i in range(len(df)):
         })      
    
 
-json_path = Path("C:/Users/Ust-Kinel/Desktop/autometization/schedule.json")
+json_path = SCHEDULE_JSON_PATH
 with open(json_path, "w", encoding="utf-8") as f:
    json.dump(schedule, f, ensure_ascii=False, indent=2)
 
@@ -191,7 +217,7 @@ except Exception as e:
 time.sleep(15)
 # Новый код с циклом
 # Загружаем расписание
-with open("C:/Users/Ust-Kinel/Desktop/autometization/schedule.json", "r", encoding="utf-8") as f:
+with open(SCHEDULE_JSON_PATH, "r", encoding="utf-8") as f:
     schedule_data = json.load(f)
 
 # Группируем по датам
@@ -366,7 +392,8 @@ for date, shows in grouped_schedule.items():
                print("✅ Клик по menuShow прошёл")
         except Exception as e:
                print(f"❗ Ошибка при работе с menuShow: {e}")
-               driver.save_screenshot(f"screenshots/error_menuShow_{show['title']}.png")
+               screenshot_name = re.sub(r'[\\/:*?"<>|]+', "_", show["title"])
+               driver.save_screenshot(str(SCREENSHOTS_DIR / f"error_menuShow_{screenshot_name}.png"))
                print("Встал на ожидание на 100 секунд для проверки")
                time.sleep(100)
                continue
