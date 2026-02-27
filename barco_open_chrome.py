@@ -3,6 +3,7 @@ from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
@@ -54,49 +55,51 @@ def _css_px_to_float(value):
 
 
 def click_time_slot(driver, day_view, time_str):
-    hour_lines = day_view.find_elements(By.CLASS_NAME, "hourLine")
-    if len(hour_lines) < 2:
-        raise RuntimeError("hourLine недостаточно для расчета позиции клика")
-
-    top0 = _css_px_to_float(hour_lines[0].value_of_css_property("top"))
-    top1 = _css_px_to_float(hour_lines[1].value_of_css_property("top"))
-    step = top1 - top0 if top1 > top0 else 80.0
-
     hour, minute = [int(x) for x in time_str.split(":")]
-    y = top0 + (hour * step) + (minute / 60.0) * step + 2
 
-    height = day_view.size.get("height", 0)
-    width = day_view.size.get("width", 0)
-    if height:
-        y = max(2, min(y, height - 2))
-    x = 60
-    if width:
-        x = max(2, min(width * 0.6, width - 2))
-
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", day_view)
-
-    try:
-        ActionChains(driver).move_to_element_with_offset(day_view, x, y).click().perform()
-    except Exception:
-        driver.execute_script(
-            """
-const el = arguments[0];
-const x = arguments[1];
-const y = arguments[2];
-const rect = el.getBoundingClientRect();
+    for _ in range(3):
+        try:
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", day_view)
+            result = driver.execute_script(
+                """
+const day = arguments[0];
+const hour = arguments[1];
+const minute = arguments[2];
+const lines = day.querySelectorAll('.hourLine');
+if (lines.length < 2) return {ok:false, reason:'hourLine<2'};
+const top0 = parseFloat(getComputedStyle(lines[0]).top);
+const top1 = parseFloat(getComputedStyle(lines[1]).top);
+const step = (top1 > top0) ? (top1 - top0) : 80;
+const y = top0 + (hour * step) + (minute / 60) * step + 2;
+const rect = day.getBoundingClientRect();
+const x = Math.min(rect.width - 2, Math.max(2, rect.width * 0.6));
+const clampedY = Math.min(rect.height - 2, Math.max(2, y));
 const clientX = rect.left + x;
-const clientY = rect.top + y;
-const target = document.elementFromPoint(clientX, clientY);
-if (target) {
-  target.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX, clientY}));
-}
+const clientY = rect.top + clampedY;
+const target = document.elementFromPoint(clientX, clientY) || day;
+target.dispatchEvent(new MouseEvent('click', {bubbles: true, cancelable: true, clientX, clientY}));
+return {ok:true, clientX, clientY, x, y: clampedY};
 """,
-            day_view,
-            x,
-            y,
-        )
+                day_view,
+                hour,
+                minute,
+            )
+            if not result or not result.get("ok"):
+                reason = result.get("reason") if isinstance(result, dict) else "unknown"
+                raise RuntimeError(f"JS click failed: {reason}")
+            return result.get("x"), result.get("y")
+        except StaleElementReferenceException:
+            time.sleep(0.3)
+            continue
+        except Exception:
+            time.sleep(0.3)
+            continue
 
-    return x, y
+    # Last resort: ActionChains if JS failed
+    try:
+        return ActionChains(driver).move_to_element(day_view).click().perform()
+    except Exception as e:
+        raise RuntimeError(f"Click time slot failed after retries: {e}")
 
 
 def open_show_popover(driver, wait, day_view):
@@ -331,6 +334,11 @@ for date, shows in grouped_schedule.items():
             open_show_popover(driver, wait, day_view)
         except Exception as e:
             print(f"❗ Ошибка при клике на таймлайн: {e}")
+            try:
+                screenshot_name = re.sub(r'[\\/:*?"<>|]+', "_", f"{show['date']}_{show['time']}_{show['title']}")
+                driver.save_screenshot(str(SCREENSHOTS_DIR / f"error_timeline_{screenshot_name}.png"))
+            except Exception:
+                pass
             continue
 
         # Выбор фильма из выпадающего списка
