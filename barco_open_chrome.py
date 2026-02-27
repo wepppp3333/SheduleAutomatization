@@ -158,6 +158,39 @@ window.scrollTo(0, 0);
         pass
 
 
+def open_menu_show(driver, wait, target_block):
+    for _ in range(3):
+        try:
+            hover_element(driver, target_block)
+            try:
+                target_block.click()
+            except Exception:
+                pass
+            menu_show = wait.until(EC.presence_of_element_located((By.ID, "menuShow")))
+            if not menu_show.is_displayed():
+                driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", menu_show)
+            menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
+            try:
+                menu_show.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", menu_show)
+            return
+        except Exception:
+            time.sleep(0.5)
+            continue
+    # JS fallback if still not found
+    clicked = driver.execute_script(
+        """
+const el = document.getElementById('menuShow');
+if (!el) return false;
+el.click();
+return true;
+"""
+    )
+    if not clicked:
+        raise RuntimeError("menuShow not found after retries")
+
+
 class Tee:
     def __init__(self, *streams):
         self.streams = streams
@@ -500,16 +533,7 @@ for date, shows in grouped_schedule.items():
         time.sleep(2)
 
         try:
-               hover_element(driver, target_block)
-               menu_show = wait.until(EC.visibility_of_element_located((By.ID, "menuShow")))
-               driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", menu_show)
-               menu_show = wait.until(EC.element_to_be_clickable((By.ID, "menuShow")))
-               print("✅ menuShow найден")
-               try:
-                  menu_show.click()
-               except Exception as e_click:
-                  print(f"❗ Простой клик по menuShow не удался, пробуем через JS: {e_click}")
-                  driver.execute_script("arguments[0].click();", menu_show)
+               open_menu_show(driver, wait, target_block)
                print("✅ Клик по menuShow прошёл")
         except Exception as e:
                print(f"❗ Ошибка при работе с menuShow: {e}")
