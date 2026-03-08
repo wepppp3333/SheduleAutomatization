@@ -598,6 +598,7 @@ day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "da
 for date, shows in grouped_schedule.items():
     print(f"\n📅 Обрабатываем дату: {date}")
 
+    day = str(int(date.split(".")[0]))
     # Ищем нужный dayHeader по дате
     found_index = None
     
@@ -672,7 +673,25 @@ for date, shows in grouped_schedule.items():
         time.sleep(5)
         menu_Show = driver.find_element(By.ID,"menuShow").click()
         time.sleep(7)
-        move_to = driver.find_element(By.ID,"move_to").click()
+        move_to = driver.find_element(By.ID,"moveTo").click()
+
+
+        # Работа с перемещением с календарем
+        print(f"Нужный день {day}")
+        table_condensed = driver.find_element(By.CLASS_NAME,"table-condensed").click()
+        day_shedule = table_condensed.find.elements(By.CLASS_NAME,"day")
+
+        for el in day_shedule:
+            cls = el.get.attribute("class")
+            txt = el.text.strip()
+
+            if txt != day:
+                continue
+            if "notSelectable" in cls:
+                continue
+
+            el.click()
+            break
         print(f" Ушел на паузу 100 секунд")
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
