@@ -626,6 +626,8 @@ for date, shows in grouped_schedule.items():
         print(f"found_index{found_index}")
         day_view = driver.find_elements(By.CLASS_NAME,"dayView")
         print(f"day_view{day_view}")
+        print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
+
 
     # for show in shows:
     #     print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
