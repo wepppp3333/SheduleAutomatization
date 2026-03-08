@@ -662,6 +662,7 @@ for date, shows in grouped_schedule.items():
         row_items_target = None
 
         for el in row_items:
+            
             title_items = el.find_element(By.CLASS_NAME,"title")
             value = title_items.text.strip().lower()
 
@@ -683,9 +684,10 @@ for date, shows in grouped_schedule.items():
         time.sleep(7)
         day_shedule = table_condensed.find_elements(By.CLASS_NAME,"day")
 
-        for el in day_shedule:
-            cls = el.get.attribute("class")
-            txt = el.text.strip()
+        for dayShedule in day_shedule:
+            print(f"cell:", dayShedule.text.strip(), dayShedule.get_attribute("class")) 
+            cls = dayShedule.get.attribute("class")
+            txt = dayShedule.text.strip()
 
             if txt != day:
                 continue
@@ -693,7 +695,7 @@ for date, shows in grouped_schedule.items():
                 continue
 
             print(f"Найденный день в календаре {el}")   
-            el.click()
+            dayShedule.click()
             break
 
         showHours = driver.find_element(By.CLASS_NAME,"timepicker-hour").click()
