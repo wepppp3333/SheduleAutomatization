@@ -640,8 +640,9 @@ for date, shows in grouped_schedule.items():
             text_value = a.text.strip().lower()
             if movie_name in text_value:
                 target = a
+                break
             print(f"🎬 Наименования в списке выбора фильмов")
-            break
+            
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
