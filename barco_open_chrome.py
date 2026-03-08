@@ -617,6 +617,7 @@ for date, shows in grouped_schedule.items():
         continue
     
     time.sleep(10)
+    # //*[@id="schedulerTimeViewInner"]/div[2]/div[4]/div[7]/div[3]
    #  day_view = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))[found_index]
 
     # scroll_timeline_to_top(driver)
@@ -624,9 +625,11 @@ for date, shows in grouped_schedule.items():
     for show in shows: 
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
         print(f"found_index{found_index}")
-        day_view = driver.find_elements(By.CLASS_NAME,"dayView")
-        print(f"day_view{day_view}")
-        print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
+        day_view = driver.find_elements(By.CLASS_NAME,"dayView")[found_index]
+        hour_lines = day_view.find_elements(By.CLASS_NAME,"hourLine")
+        hour_lines[5].click()
+        print(f"day_view{hour_lines[5]}")
+        # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
 
     # for show in shows:
