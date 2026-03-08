@@ -623,6 +623,7 @@ for date, shows in grouped_schedule.items():
     # scroll_timeline_to_top(driver)
 
     for show in shows: 
+        movie_name = show["title"].strip().lower()
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
         print(f"found_index{found_index}")
         day_view = driver.find_elements(By.CLASS_NAME,"dayView")[found_index]
@@ -631,6 +632,16 @@ for date, shows in grouped_schedule.items():
 
         caret_btn = driver.find_element(By.CLASS_NAME,"caretBtn").click()
         print(f"Клик по кнопке произошел")
+
+        list_Of_Shows = driver.find_element(By.ID,"listOfShows")
+        links = list_Of_Shows.find_elements(By.TAG_NAME, "a")
+        target = None
+        for a in links:
+            text_value = a.text.strip().lower()
+            if movie_name in text_value:
+                target = a
+            print(f"🎬 Наименования в списке выбора фильмов")
+            break
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
