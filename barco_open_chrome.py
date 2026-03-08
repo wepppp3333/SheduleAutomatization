@@ -612,8 +612,8 @@ for date, shows in grouped_schedule.items():
 
     if found_index is None:
         print(f"⚠️ Дата {date} не найдена на странице. Пропускаем.")
-        driver.find_element("class","nextHeader").click()
-        exit
+        driver.find_element(By.CLASS_NAME,"nextHeader").click()
+        exit()
         continue
     
     time.sleep(10)
