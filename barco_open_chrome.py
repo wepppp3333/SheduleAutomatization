@@ -612,17 +612,20 @@ for date, shows in grouped_schedule.items():
 
     if found_index is None:
         print(f"⚠️ Дата {date} не найдена на странице. Пропускаем.")
-        driver.find_element(By.CLASS_NAME,"nextHeader").click()
-        exit()
+        # driver.find_element(By.CLASS_NAME,"nextHeader").click()
+        # day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
         continue
     
     time.sleep(10)
    #  day_view = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))[found_index]
 
-    scroll_timeline_to_top(driver)
+    # scroll_timeline_to_top(driver)
 
     for show in shows: 
-        print("Первый фильм ", show)
+        print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
+        print(f"found_index{found_index}")
+        day_view = driver.find_elements(By.CLASS_NAME,"dayView")
+        print(f"day_view{day_view}")
 
     # for show in shows:
     #     print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
