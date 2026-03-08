@@ -633,13 +633,16 @@ for date, shows in grouped_schedule.items():
         # day = str(int(date.split(".")[0]))
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
         print(f"found_index{found_index}")
+        time.sleep(2)
         day_view = driver.find_elements(By.CLASS_NAME,"dayView")[found_index]
         hour_lines = day_view.find_elements(By.CLASS_NAME,"hourLine")
         hour_lines[5].click()
 
+        time.sleep(2)
         caret_btn = driver.find_element(By.CLASS_NAME,"caretBtn").click()
         print(f"Клик по кнопке произошел")
 
+        time.sleep(2)
         list_Of_Shows = driver.find_element(By.ID,"listOfShows")
         links = list_Of_Shows.find_elements(By.TAG_NAME, "a")
         target = None
@@ -653,11 +656,13 @@ for date, shows in grouped_schedule.items():
             print(f"🎬 Наименования в списке выбора фильмов {text_value}")
         
         # Нашли фильм в списке выбрали его 
+        time.sleep(2)
         target.click()
         popover_title = driver.find_element(By.ID,"showPlaceHolderPopover")
         ok_btn = popover_title.find_element(By.CLASS_NAME,"ok").click()
 
         # Ищем фильм для перемещения
+        time.sleep(2)
         row_items = day_view.find_elements(By.CLASS_NAME,"rowItem")
 
         row_items_target = None
@@ -681,6 +686,7 @@ for date, shows in grouped_schedule.items():
 
         # Работа с перемещением с календарем
         print(f"Нужный день {day}")
+        time.sleep(2)
         table_condensed = driver.find_element(By.CLASS_NAME,"datepicker-days")
         time.sleep(7)
         day_shedule = table_condensed.find_elements(By.CLASS_NAME,"day")
@@ -700,6 +706,7 @@ for date, shows in grouped_schedule.items():
             dayShedule.click()
             break
 
+        time.sleep(2)
         showHours = driver.find_element(By.CLASS_NAME,"timepicker-hour").click()
         timepicker = driver.find_element(By.CLASS_NAME,"timepicker")
         hour_arr = timepicker.find_elements(By.CLASS_NAME,"hour")
@@ -720,6 +727,7 @@ for date, shows in grouped_schedule.items():
         rounded_minute_str = f"{rounded_minute:02d}"
         print(f"Минуты из Excel: {minuts_time}, ставим: {rounded_minute_str}")
 
+        time.sleep(2)
         driver.find_element(By.CLASS_NAME, "timepicker-minute").click()
         minute_cells = driver.find_elements(By.CLASS_NAME, "minute")
 
@@ -746,6 +754,7 @@ for date, shows in grouped_schedule.items():
 
         # Сохраняем рассписание
         # dateTimeModal = driver.find_element(By.ID,"dateTimeModal")
+        time.sleep(2)
         driver.find_element(By.ID,"confirmDateTimeBtn").click()
         print(f" Фильм добавлен {movie_name} время {hour_time} минуты {minuts_time}")
         print(f" Ушел на паузу 20 секунд")
