@@ -640,6 +640,7 @@ for date, shows in grouped_schedule.items():
             text_value = a.text.strip().lower()
             if movie_name in text_value:
                 target = a
+                target.click()
                 break
             print(f"🎬 Наименования в списке выбора фильмов")
             
