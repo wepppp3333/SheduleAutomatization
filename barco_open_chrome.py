@@ -598,6 +598,7 @@ for date, shows in grouped_schedule.items():
     print(f"\n📅 Обрабатываем дату: {date}")
 
     day = str(int(date.split(".")[0]))
+    # time_hour = 
     # Ищем нужный dayHeader по дате
     found_index = None
     
@@ -627,6 +628,8 @@ for date, shows in grouped_schedule.items():
 
     for show in shows: 
         movie_name = show["title"].strip().lower()
+        hour_time = show["time"].split(":")[0]
+        # day = str(int(date.split(".")[0]))
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
         print(f"found_index{found_index}")
         day_view = driver.find_elements(By.CLASS_NAME,"dayView")[found_index]
@@ -693,7 +696,17 @@ for date, shows in grouped_schedule.items():
             break
 
         showHours = driver.find_element(By.CLASS_NAME,"showHours").click()
+        timepicker = driver.find_element(By.CLASS_NAME,"timepicker")
+        hour_arr = timepicker.find_elements(By.CLASS_NAME,"hour")
 
+        for hour in hour_arr:
+            value_hour = hour.text.strip()
+
+            if value_hour != hour_time:
+                continue
+
+            hour.click()
+            break
 
         print(f" Ушел на паузу 100 секунд")
         time.sleep(100)
