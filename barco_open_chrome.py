@@ -589,12 +589,14 @@ grouped_schedule = defaultdict(list)
 for item in schedule_data:
     grouped_schedule[item["date"]].append(item)
 
+day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
+
 for date, shows in grouped_schedule.items():
     print(f"\n📅 Обрабатываем дату: {date}")
 
     # Ищем нужный dayHeader по дате
     found_index = None
-    day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
+    
     for i in range(len(day_headers)):
         try:
             header = day_headers[i]
@@ -610,12 +612,17 @@ for date, shows in grouped_schedule.items():
 
     if found_index is None:
         print(f"⚠️ Дата {date} не найдена на странице. Пропускаем.")
+        driver.find_element("class","nextHeader").click()
+        exit
         continue
     
     time.sleep(10)
    #  day_view = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))[found_index]
 
     scroll_timeline_to_top(driver)
+
+    for show in shows: 
+        print("Первый фильм ", show)
 
     # for show in shows:
     #     print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
@@ -806,8 +813,7 @@ for date, shows in grouped_schedule.items():
     #     time.sleep(10)
 
    
-    for show in shows: 
-        print("Первый фильм ", show)
+
 
 time.sleep(3)
 driver.quit()
