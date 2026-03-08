@@ -582,7 +582,6 @@ except Exception as e:
 
 
 
-time.sleep(15)
 # Новый код с циклом
 # Загружаем расписание
 with open(SCHEDULE_JSON_PATH, "r", encoding="utf-8") as f:
@@ -621,7 +620,6 @@ for date, shows in grouped_schedule.items():
         # day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
         continue
     
-    time.sleep(10)
     # //*[@id="schedulerTimeViewInner"]/div[2]/div[4]/div[7]/div[3]
    #  day_view = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayView")))[found_index]
 
@@ -693,6 +691,10 @@ for date, shows in grouped_schedule.items():
 
             el.click()
             break
+
+        showHours = driver.find_element(By.CLASS_NAME,"showHours").click()
+
+
         print(f" Ушел на паузу 100 секунд")
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
