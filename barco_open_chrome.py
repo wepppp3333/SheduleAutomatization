@@ -641,6 +641,7 @@ for date, shows in grouped_schedule.items():
             if movie_name in text_value:
                 target = a
                 target.click()
+                print(f"🎬 Найден фильм в списке {text_value} наименование в exel {movie_name}")
                 break
             print(f"🎬 Наименования в списке выбора фильмов")
             
