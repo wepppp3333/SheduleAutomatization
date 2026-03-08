@@ -447,6 +447,10 @@ def _global_excepthook(exc_type, exc_value, exc_tb):
     print("".join(traceback.format_exception(exc_type, exc_value, exc_tb)))
 
 
+def search_elements(elementsClass):
+    elements = driver.find_element(elementsClass)
+    return elements
+
 sys.excepthook = _global_excepthook
 
 
@@ -650,7 +654,20 @@ for date, shows in grouped_schedule.items():
         popover_title = driver.find_element(By.CLASS_NAME,"popover-title")
         ok_btn = popover_title.find_element(By.CLASS_NAME,"ok").click()
 
+        # Ищем фильм для перемещения
+        row_items = day_view.find_elements(By.CLASS_NAME,"rowItem")
 
+        row_items_target = None
+
+        for el in row_items:
+            title_items = el.find_element(By.CLASS_NAME,"title")
+            value = title_items.text.strip().lower()
+
+            if movie_name in value:
+                row_items_target = el
+                break
+        
+        row_items_target.click()
 
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
