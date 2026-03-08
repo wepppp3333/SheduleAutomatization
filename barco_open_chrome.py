@@ -669,10 +669,11 @@ for date, shows in grouped_schedule.items():
         
         row_items_target.click()
 
-        menu_Show = driver.find_element(By.ID,"menuShow")
+        time.sleep(5)
+        menu_Show = driver.find_element(By.ID,"menuShow").click()
         time.sleep(2)
-        move_to = driver.find_element(By.ID,"move_to")
-
+        move_to = driver.find_element(By.ID,"move_to").click()
+        print(f" Ушел на паузу 100 секунд")
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
