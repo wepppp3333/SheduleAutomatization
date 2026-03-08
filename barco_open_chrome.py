@@ -692,10 +692,11 @@ for date, shows in grouped_schedule.items():
             if "notSelectable" in cls:
                 continue
 
+            print(f"Найденный день в календаре {el}")   
             el.click()
             break
 
-        showHours = driver.find_element(By.CLASS_NAME,"showHours").click()
+        showHours = driver.find_element(By.CLASS_NAME,"timepicker-hour").click()
         timepicker = driver.find_element(By.CLASS_NAME,"timepicker")
         hour_arr = timepicker.find_elements(By.CLASS_NAME,"hour")
 
