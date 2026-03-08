@@ -743,8 +743,13 @@ for date, shows in grouped_schedule.items():
                     driver.find_element(By.CSS_SELECTOR, "[data-action='decrementMinutes']").click()
                 time.sleep(0.1)
 
-        print(f" Ушел на паузу 100 секунд")
-        time.sleep(100)
+
+        # Сохраняем рассписание
+        # dateTimeModal = driver.find_element(By.ID,"dateTimeModal")
+        driver.find_element(By.ID,"confirmDateTimeBtn").click()
+        print(f" Фильм добавлен {movie_name} время {hour_time} минуты {minuts_time}")
+        print(f" Ушел на паузу 20 секунд")
+        time.sleep(20)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
 
