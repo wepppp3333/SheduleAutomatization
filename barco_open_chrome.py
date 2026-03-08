@@ -678,7 +678,7 @@ for date, shows in grouped_schedule.items():
 
         # Работа с перемещением с календарем
         print(f"Нужный день {day}")
-        table_condensed = driver.find_element(By.CLASS_NAME,"table-condensed").click()
+        table_condensed = driver.find_element(By.CLASS_NAME,"table-condensed")
         day_shedule = table_condensed.find.elements(By.CLASS_NAME,"day")
 
         for el in day_shedule:
