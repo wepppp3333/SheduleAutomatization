@@ -680,11 +680,12 @@ for date, shows in grouped_schedule.items():
 
         # Работа с перемещением с календарем
         print(f"Нужный день {day}")
-        table_condensed = driver.find_element(By.CLASS_NAME,"table-condensed")
+        table_condensed = driver.find_element(By.CLASS_NAME,"datepicker-days")
         time.sleep(7)
         day_shedule = table_condensed.find_elements(By.CLASS_NAME,"day")
 
         for dayShedule in day_shedule:
+            print(f"Зашел в выбор дня в рассписании")   
             print(f"cell:", dayShedule.text.strip(), dayShedule.get_attribute("class")) 
             cls = dayShedule.get.attribute("class")
             txt = dayShedule.text.strip()
