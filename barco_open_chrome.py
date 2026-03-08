@@ -654,7 +654,7 @@ for date, shows in grouped_schedule.items():
         
         # Нашли фильм в списке выбрали его 
         target.click()
-        popover_title = driver.find_element(By.CLASS_NAME,"popover-title")
+        popover_title = driver.find_element(By.ID,"showPlaceHolderPopover")
         ok_btn = popover_title.find_element(By.CLASS_NAME,"ok").click()
 
         # Ищем фильм для перемещения
@@ -749,7 +749,7 @@ for date, shows in grouped_schedule.items():
         driver.find_element(By.ID,"confirmDateTimeBtn").click()
         print(f" Фильм добавлен {movie_name} время {hour_time} минуты {minuts_time}")
         print(f" Ушел на паузу 20 секунд")
-        time.sleep(20)
+        time.sleep(5)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
 
