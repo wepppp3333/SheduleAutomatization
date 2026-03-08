@@ -628,7 +628,8 @@ for date, shows in grouped_schedule.items():
         day_view = driver.find_elements(By.CLASS_NAME,"dayView")[found_index]
         hour_lines = day_view.find_elements(By.CLASS_NAME,"hourLine")
         hour_lines[5].click()
-        print(f"day_view{hour_lines[5]}")
+        print(f"day_view5{hour_lines[5]}")
+        time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
 
