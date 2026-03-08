@@ -629,6 +629,7 @@ for date, shows in grouped_schedule.items():
     for show in shows: 
         movie_name = show["title"].strip().lower()
         hour_time = show["time"].split(":")[0]
+        minuts_time = show["time"].split(":")[1]
         # day = str(int(date.split(".")[0]))
         print(f"🎬 Добавляем фильм: {show['title']} в {show['time']}")
         print(f"found_index{found_index}")
@@ -711,6 +712,36 @@ for date, shows in grouped_schedule.items():
 
             hour.click()
             break
+
+        # Минуты в этом пикере идут с шагом 3, поэтому округляем к ближайшему значению.
+        target_minute_int = int(minuts_time)
+        rounded_minute = int(round(target_minute_int / 3) * 3)
+        rounded_minute = min(57, max(0, rounded_minute))
+        rounded_minute_str = f"{rounded_minute:02d}"
+        print(f"Минуты из Excel: {minuts_time}, ставим: {rounded_minute_str}")
+
+        driver.find_element(By.CLASS_NAME, "timepicker-minute").click()
+        minute_cells = driver.find_elements(By.CLASS_NAME, "minute")
+
+        minute_selected = False
+        for minute_cell in minute_cells:
+            if minute_cell.text.strip() == rounded_minute_str:
+                minute_cell.click()
+                minute_selected = True
+                break
+
+        if not minute_selected:
+            print(f"Не нашли минуту {rounded_minute_str} в списке, пробуем через increment/decrement")
+            for _ in range(25):
+                current_min = driver.find_element(By.CLASS_NAME, "timepicker-minute").text.strip()
+                if current_min == rounded_minute_str:
+                    minute_selected = True
+                    break
+                if int(current_min) < rounded_minute:
+                    driver.find_element(By.CSS_SELECTOR, "[data-action='incrementMinutes']").click()
+                else:
+                    driver.find_element(By.CSS_SELECTOR, "[data-action='decrementMinutes']").click()
+                time.sleep(0.1)
 
         print(f" Ушел на паузу 100 секунд")
         time.sleep(100)
