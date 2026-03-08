@@ -680,7 +680,7 @@ for date, shows in grouped_schedule.items():
         print(f"Нужный день {day}")
         table_condensed = driver.find_element(By.CLASS_NAME,"table-condensed")
         time.sleep(7)
-        day_shedule = table_condensed.find.elements(By.CLASS_NAME,"day")
+        day_shedule = table_condensed.find_elements(By.CLASS_NAME,"day")
 
         for el in day_shedule:
             cls = el.get.attribute("class")
