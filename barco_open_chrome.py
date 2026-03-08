@@ -640,11 +640,18 @@ for date, shows in grouped_schedule.items():
             text_value = a.text.strip().lower()
             if movie_name in text_value:
                 target = a
-                target.click()
+                
                 print(f"🎬 Найден фильм в списке {text_value} наименование в exel {movie_name}")
                 break
-            print(f"🎬 Наименования в списке выбора фильмов")
-            
+            print(f"🎬 Наименования в списке выбора фильмов {text_value}")
+        
+        # Нашли фильм в списке выбрали его 
+        target.click()
+        popover_title = driver.find_element(By.CLASS_NAME,"popover-title")
+        ok_btn = popover_title.find_element(By.CLASS_NAME,"ok").click()
+
+
+
         time.sleep(100)
         # print(f"Длинна",len(driver.find_elements(By.CLASS_NAME,"dayView")))
 
