@@ -687,7 +687,7 @@ for date, shows in grouped_schedule.items():
         for dayShedule in day_shedule:
             print(f"Зашел в выбор дня в рассписании")   
             print(f"cell:", dayShedule.text.strip(), dayShedule.get_attribute("class")) 
-            cls = dayShedule.get.attribute("class")
+            cls = dayShedule.get_attribute("class")
             txt = dayShedule.text.strip()
 
             if txt != day:
