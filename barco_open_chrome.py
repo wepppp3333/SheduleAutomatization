@@ -671,7 +671,15 @@ def set_modal_datetime(driver, wait, modal, date_str, hour, minute):
             (By.CSS_SELECTOR, "#dateTimeModal .timepicker-minutes .minute")
         )
     )
-    click_exact_text(minutes, f"{minute:02d}", "Минута")
+    minute_grid_value = (minute // 3) * 3
+    click_exact_text(minutes, f"{minute_grid_value:02d}", "Минута")
+    for _ in range(minute - minute_grid_value):
+        increment = wait.until(
+            EC.element_to_be_clickable(
+                (By.CSS_SELECTOR, "#dateTimeModal [data-action='incrementMinutes']")
+            )
+        )
+        increment.click()
 
     modal.find_element(By.CLASS_NAME, "timepicker-second").click()
     seconds = wait.until(
@@ -680,11 +688,6 @@ def set_modal_datetime(driver, wait, modal, date_str, hour, minute):
         )
     )
     click_exact_text(seconds, "00", "Секунда")
-
-    picker_ok = modal.find_element(
-        By.CSS_SELECTOR, ".timepicker [data-action='ok']"
-    )
-    wait.until(EC.element_to_be_clickable(picker_ok)).click()
 
     confirm = wait.until(
         EC.element_to_be_clickable(
@@ -697,15 +700,8 @@ def set_modal_datetime(driver, wait, modal, date_str, hour, minute):
 
 def schedule_show(driver, wait, day_index, show):
     title = show["title"]
-    hour, source_minute = [int(part) for part in show["time"].split(":")]
-    minute = round_minute_to_grid(source_minute)
+    hour, minute = [int(part) for part in show["time"].split(":")]
     expected_time = format_time_12h(hour, minute)
-
-    if source_minute != minute:
-        print(
-            f"Минуты {source_minute:02d} округлены до {minute:02d} "
-            "по сетке Barco"
-        )
 
     if show_exists(driver, day_index, title, hour, minute):
         print(f"Сеанс уже существует: '{title}' в {expected_time}. Пропускаем.")
