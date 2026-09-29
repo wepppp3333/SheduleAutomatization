@@ -22,4 +22,6 @@ if (-not $tailscaleIp) {
 }
 
 Write-Host "Barco automation API: http://${tailscaleIp}:8080"
-py -m uvicorn automation_server:app --host $tailscaleIp --port 8080
+# Listen on every local interface so Windows accepts connections arriving
+# through the Tailscale adapter as well as local health checks.
+py -m uvicorn automation_server:app --host 0.0.0.0 --port 8080
