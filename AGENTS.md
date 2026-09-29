@@ -4,7 +4,10 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 
 # Directory Map
 
-- `barco_open_chrome.py` -> main and only application entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
+- `barco_open_chrome.py` -> main automation entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
+- `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
+- `start_automation_server.ps1` -> starts the handler on the computer's Tailscale IPv4 address and port 8080.
+- `requirements.txt` -> Python runtime dependencies for automation and the API handler.
 - `README.md` -> minimal repository title; not yet a setup guide.
 - `test.html` -> unrelated HTML scratch file; not used by the Python automation.
 - `automation_artifacts/` -> runtime output created automatically; contains log, generated JSON, and screenshots.
@@ -21,7 +24,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 Install runtime dependencies:
 
 ```powershell
-py -m pip install selenium openpyxl
+py -m pip install -r requirements.txt
 ```
 
 Run on the Windows workstation with access to Barco:
@@ -44,6 +47,12 @@ py -m py_compile barco_open_chrome.py
 ```
 
 There is currently no automated test, build, migration, or deployment command.
+
+Start the Tailscale-only API handler after setting `BARCO_API_TOKEN`:
+
+```powershell
+.\start_automation_server.ps1
+```
 
 # Rules & Gotchas
 
