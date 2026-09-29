@@ -409,6 +409,287 @@ if (modal) {
     clear_blocking_modal_backdrop(driver)
 
 
+def round_minute_to_grid(minute):
+    rounded = int(round(int(minute) / 3) * 3)
+    return min(57, max(0, rounded))
+
+
+def format_time_12h(hour, minute):
+    suffix = "AM" if hour < 12 else "PM"
+    display_hour = hour % 12 or 12
+    return f"{display_hour:02d}:{minute:02d} {suffix}"
+
+
+def get_visible_date_headers(driver):
+    headers = driver.find_elements(By.CLASS_NAME, "dayHeader")
+    result = []
+    for index, header in enumerate(headers):
+        try:
+            text = header.find_element(By.CLASS_NAME, "date").text.strip()
+            result.append((index, datetime.strptime(text, "%d/%m/%Y"), text))
+        except (ValueError, StaleElementReferenceException):
+            continue
+    return result
+
+
+def find_date_column(driver, wait, date_str, max_week_changes=16):
+    target_date = datetime.strptime(date_str, "%d.%m.%Y")
+
+    for _ in range(max_week_changes + 1):
+        headers = get_visible_date_headers(driver)
+        for index, header_date, _ in headers:
+            if header_date.date() == target_date.date():
+                return index
+
+        if not headers:
+            raise RuntimeError("На странице не найдены dayHeader")
+
+        first_before = headers[0][2]
+        navigation_class = "nextHeader" if target_date > headers[-1][1] else "prevHeader"
+        navigation = wait.until(
+            EC.element_to_be_clickable((By.CLASS_NAME, navigation_class))
+        )
+        navigation.click()
+        wait.until(
+            lambda d: get_visible_date_headers(d)
+            and get_visible_date_headers(d)[0][2] != first_before
+        )
+
+    raise RuntimeError(f"Дата {date_str} не появилась после перелистывания недель")
+
+
+def get_day_view(driver, index):
+    day_views = driver.find_elements(By.CLASS_NAME, "dayView")
+    if index >= len(day_views):
+        raise RuntimeError(
+            f"dayView с индексом {index} не найден; всего колонок: {len(day_views)}"
+        )
+    return day_views[index]
+
+
+def row_title(row):
+    try:
+        return row.find_element(By.CLASS_NAME, "title").text.strip()
+    except Exception:
+        return ""
+
+
+def row_start_time(row):
+    try:
+        return row.find_element(By.CLASS_NAME, "startTime").text.strip()
+    except Exception:
+        return ""
+
+
+def find_show_row(driver, day_index, title, start_time=None):
+    day_view = get_day_view(driver, day_index)
+    for row in day_view.find_elements(By.CLASS_NAME, "rowItem"):
+        if not titles_match(title, row_title(row)):
+            continue
+        if start_time is not None and row_start_time(row) != start_time:
+            continue
+        return row
+    return None
+
+
+def wait_for_show_row(driver, day_index, title, start_time, timeout=12):
+    return WebDriverWait(driver, timeout).until(
+        lambda d: find_show_row(d, day_index, title, start_time)
+    )
+
+
+def show_exists(driver, day_index, title, hour, minute):
+    return find_show_row(
+        driver,
+        day_index,
+        title,
+        format_time_12h(hour, minute),
+    ) is not None
+
+
+def click_free_hour_line(driver, day_index):
+    day_view = get_day_view(driver, day_index)
+    hour_lines = day_view.find_elements(By.CLASS_NAME, "hourLine")
+    if len(hour_lines) < 24:
+        raise RuntimeError(f"Ожидалось 25 hourLine, найдено {len(hour_lines)}")
+
+    free_index = driver.execute_script(
+        """
+const day = arguments[0];
+const preferred = [5, 4, 6, 3, 7, 2, 1, 0];
+const rows = Array.from(day.querySelectorAll('.rowItem')).map(row => ({
+  top: parseFloat(getComputedStyle(row).top) || 0,
+  bottom: (parseFloat(getComputedStyle(row).top) || 0) + row.getBoundingClientRect().height
+}));
+const past = day.querySelector('.pastTime');
+const pastHeight = past && getComputedStyle(past).display !== 'none'
+  ? past.getBoundingClientRect().height : 0;
+const lines = day.querySelectorAll('.hourLine');
+for (const index of preferred) {
+  const top = parseFloat(getComputedStyle(lines[index]).top) || 0;
+  const occupied = rows.some(row => top >= row.top - 2 && top <= row.bottom + 2);
+  if (top > pastHeight + 2 && !occupied) return index;
+}
+return -1;
+""",
+        day_view,
+    )
+    if free_index < 0:
+        raise RuntimeError("Не найден свободный временный час в начале дня")
+
+    target_line = hour_lines[free_index]
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center'});", target_line
+    )
+    try:
+        target_line.click()
+    except Exception:
+        driver.execute_script("arguments[0].click();", target_line)
+
+    return free_index, format_time_12h(free_index, 0)
+
+
+def choose_show_in_popover(driver, wait, title):
+    popover = wait.until(
+        EC.visibility_of_element_located((By.ID, "showPlaceHolderPopover"))
+    )
+    caret = wait.until(
+        EC.element_to_be_clickable((By.CSS_SELECTOR, "#showPlaceHolderPopover .caretBtn"))
+    )
+    caret.click()
+
+    show_list = wait.until(
+        EC.visibility_of_element_located((By.ID, "listOfShows"))
+    )
+    links = show_list.find_elements(By.TAG_NAME, "a")
+    candidates = [(title_similarity(title, link.text), link) for link in links]
+    if not candidates:
+        raise RuntimeError("Список фильмов пуст")
+
+    score, target = max(candidates, key=lambda item: item[0])
+    if score < 0.55:
+        available = [link.text.strip() for link in links if link.text.strip()]
+        raise RuntimeError(
+            f"Фильм '{title}' не найден. Доступные фильмы: {available}"
+        )
+
+    selected_title = target.text.strip()
+    target.click()
+    wait.until(
+        EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, "#showPlaceHolderPopover .ok")
+        )
+    ).click()
+    print(f"Выбран фильм '{selected_title}' (совпадение {score:.2f})")
+
+
+def open_move_dialog(driver, wait, row):
+    move_button = row.find_element(By.CLASS_NAME, "moveRowBtn")
+    driver.execute_script(
+        "arguments[0].scrollIntoView({block: 'center'});", move_button
+    )
+    wait.until(EC.element_to_be_clickable(move_button)).click()
+
+    menu_show = wait.until(
+        EC.visibility_of_element_located((By.ID, "menuShow"))
+    )
+    menu_show.click()
+
+    move_to = wait.until(
+        EC.visibility_of_element_located((By.ID, "moveTo"))
+    )
+    wait.until(EC.element_to_be_clickable(move_to)).click()
+    return wait.until(
+        EC.visibility_of_element_located((By.ID, "dateTimeModal"))
+    )
+
+
+def click_exact_text(elements, expected, description):
+    for element in elements:
+        if element.text.strip() == expected:
+            element.click()
+            return
+    raise RuntimeError(f"{description} '{expected}' не найден")
+
+
+def set_modal_datetime(driver, wait, modal, date_str, hour, minute):
+    target_day = str(int(date_str.split(".")[0]))
+    day_cells = modal.find_elements(
+        By.CSS_SELECTOR,
+        ".datepicker-days td.day:not(.old):not(.new):not(.notSelectable)",
+    )
+    click_exact_text(day_cells, target_day, "День календаря")
+
+    modal.find_element(By.CLASS_NAME, "timepicker-hour").click()
+    hours = wait.until(
+        EC.visibility_of_all_elements_located(
+            (By.CSS_SELECTOR, "#dateTimeModal .timepicker-hours .hour")
+        )
+    )
+    click_exact_text(hours, f"{hour:02d}", "Час")
+
+    modal.find_element(By.CLASS_NAME, "timepicker-minute").click()
+    minutes = wait.until(
+        EC.visibility_of_all_elements_located(
+            (By.CSS_SELECTOR, "#dateTimeModal .timepicker-minutes .minute")
+        )
+    )
+    click_exact_text(minutes, f"{minute:02d}", "Минута")
+
+    modal.find_element(By.CLASS_NAME, "timepicker-second").click()
+    seconds = wait.until(
+        EC.visibility_of_all_elements_located(
+            (By.CSS_SELECTOR, "#dateTimeModal .timepicker-seconds .second")
+        )
+    )
+    click_exact_text(seconds, "00", "Секунда")
+
+    picker_ok = modal.find_element(
+        By.CSS_SELECTOR, ".timepicker [data-action='ok']"
+    )
+    wait.until(EC.element_to_be_clickable(picker_ok)).click()
+
+    confirm = wait.until(
+        EC.element_to_be_clickable(
+            (By.CSS_SELECTOR, "#dateTimeModal #confirmDateTimeBtn")
+        )
+    )
+    confirm.click()
+    wait.until(EC.invisibility_of_element_located((By.ID, "dateTimeModal")))
+
+
+def schedule_show(driver, wait, day_index, show):
+    title = show["title"]
+    hour, source_minute = [int(part) for part in show["time"].split(":")]
+    minute = round_minute_to_grid(source_minute)
+    expected_time = format_time_12h(hour, minute)
+
+    if source_minute != minute:
+        print(
+            f"Минуты {source_minute:02d} округлены до {minute:02d} "
+            "по сетке Barco"
+        )
+
+    if show_exists(driver, day_index, title, hour, minute):
+        print(f"Сеанс уже существует: '{title}' в {expected_time}. Пропускаем.")
+        return
+
+    _, temporary_time = click_free_hour_line(driver, day_index)
+    choose_show_in_popover(driver, wait, title)
+
+    row = wait_for_show_row(
+        driver,
+        day_index,
+        title,
+        temporary_time,
+    )
+    modal = open_move_dialog(driver, wait, row)
+    set_modal_datetime(driver, wait, modal, show["date"], hour, minute)
+
+    wait.until(lambda d: show_exists(d, day_index, title, hour, minute))
+    print(f"Фильм '{title}' установлен на {show['date']} {expected_time}")
+
+
 class Tee:
     def __init__(self, *streams):
         self.streams = streams
@@ -592,6 +873,51 @@ grouped_schedule = defaultdict(list)
 for item in schedule_data:
     grouped_schedule[item["date"]].append(item)
 
+automation_failed = False
+try:
+    for date, shows in grouped_schedule.items():
+        print(f"\nОбрабатываем дату: {date}")
+        day_index = find_date_column(driver, wait, date)
+        print(f"Дата {date} найдена, индекс колонки: {day_index}")
+
+        for show in shows:
+            print(f"Добавляем фильм: {show['title']} в {show['time']}")
+            try:
+                schedule_show(driver, wait, day_index, show)
+            except Exception:
+                automation_failed = True
+                log_exception(
+                    f"Ошибка добавления '{show['title']}' "
+                    f"на {show['date']} {show['time']}"
+                )
+                screenshot_name = re.sub(
+                    r'[\\/:*?"<>|]+',
+                    "_",
+                    f"{show['date']}_{show['time']}_{show['title']}",
+                )
+                try:
+                    driver.save_screenshot(
+                        str(SCREENSHOTS_DIR / f"error_{screenshot_name}.png")
+                    )
+                except Exception:
+                    pass
+                close_datetime_modal(driver)
+                break
+
+        if automation_failed:
+            break
+finally:
+    if automation_failed:
+        print("Автоматизация остановлена после первой ошибки, чтобы не создавать неверные сеансы.")
+    else:
+        print("Расписание обработано без ошибок.")
+    time.sleep(3)
+    driver.quit()
+
+sys.exit(1 if automation_failed else 0)
+
+
+# Legacy flow retained temporarily for reference; it is unreachable after sys.exit above.
 day_headers = wait.until(EC.presence_of_all_elements_located((By.CLASS_NAME, "dayHeader")))
 
 for date, shows in grouped_schedule.items():

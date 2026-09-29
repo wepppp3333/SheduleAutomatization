@@ -1,0 +1,68 @@
+# What this is
+
+Automation script that reads a cinema schedule from Excel and enters shows into a Barco scheduler through Selenium and Chrome. The current runtime target is a Windows workstation that can reach the private Barco URL.
+
+# Directory Map
+
+- `barco_open_chrome.py` -> main and only application entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
+- `README.md` -> minimal repository title; not yet a setup guide.
+- `test.html` -> unrelated HTML scratch file; not used by the Python automation.
+- `automation_artifacts/` -> runtime output created automatically; contains log, generated JSON, and screenshots.
+- `automation_artifacts/barco_automation.log` -> append-only console and exception log.
+- `automation_artifacts/schedule.json` -> normalized schedule generated from the Excel input on every run.
+- `automation_artifacts/screenshots/` -> screenshots captured by selected failure handlers.
+- `Рассписание*.xlsx` or `Расписание*.xlsx` -> expected Excel input in the repository root; not committed by default.
+- `__pycache__/` -> generated Python bytecode; not application source.
+- `docs/ARCHITECTURE.md` -> detailed data flow, Selenium sequence, selectors, and known risks.
+
+# Commands
+
+Install runtime dependencies:
+
+```powershell
+py -m pip install selenium pandas openpyxl
+```
+
+Run on the Windows workstation with access to Barco:
+
+```powershell
+py barco_open_chrome.py
+```
+
+Run with an explicit ChromeDriver if Selenium Manager cannot resolve one:
+
+```powershell
+$env:CHROMEDRIVER_PATH="C:\path\to\chromedriver.exe"
+py barco_open_chrome.py
+```
+
+Check syntax without running browser automation:
+
+```powershell
+py -m py_compile barco_open_chrome.py
+```
+
+There is currently no automated test, build, migration, or deployment command.
+
+# Rules & Gotchas
+
+- Run the real automation only on a machine that can reach `https://192.168.100.2:43744`.
+- The script has import-time side effects: it creates artifact directories, rewrites `schedule.json`, starts Chrome, and operates the scheduler.
+- Keep the Excel input in the project root and name it with the `Рассписание` or `Расписание` prefix.
+- Excel rows are parsed as date markers followed by rows whose first column contains `HH:MM`; titles come from the second column.
+- The active scheduler uses helper functions and a fail-fast grouped loop; the previous procedural implementation remains unreachable below `sys.exit` until the new flow is verified.
+- Selenium elements become stale after Barco redraws the schedule. Re-query `dayHeader`, `dayView`, `rowItem`, and modal controls after state-changing clicks.
+- Prefer `WebDriverWait` for visible/clickable state. Existing `time.sleep` calls are temporary stabilization and should not be multiplied without evidence.
+- Minute choices use a three-minute grid. The active code rounds source minutes to the nearest available value.
+- Do not assume `.click()` returns an element; Selenium `.click()` returns `None`.
+- `div` and `span` values are read through `.text` or `get_attribute(...)`, not `.value`.
+- Logs must remain enabled; failures are diagnosed from `automation_artifacts/barco_automation.log` on the remote workstation.
+- Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
+- `selenium`, `pandas`, and an Excel engine such as `openpyxl` are required, but no dependency lock file exists yet.
+- The tracked `__pycache__/barco_open_chrome.cpython-314.pyc` is generated output and should not be treated as source.
+
+# Docs Links
+
+- Architecture and runtime flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
+
+Update this map whenever project structure or commands change.
