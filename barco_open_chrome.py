@@ -515,12 +515,22 @@ def row_start_time(row):
         return ""
 
 
+def normalize_barco_time(value):
+    cleaned = re.sub(r"\s+", " ", str(value).replace("\xa0", " ")).strip().upper()
+    try:
+        return datetime.strptime(cleaned, "%I:%M %p").strftime("%I:%M %p")
+    except ValueError:
+        return cleaned
+
+
 def find_show_row(driver, day_index, title, start_time=None):
     day_view = get_day_view(driver, day_index)
     for row in day_view.find_elements(By.CLASS_NAME, "rowItem"):
         if not titles_match(title, row_title(row)):
             continue
-        if start_time is not None and row_start_time(row) != start_time:
+        if start_time is not None and normalize_barco_time(
+            row_start_time(row)
+        ) != normalize_barco_time(start_time):
             continue
         return row
     return None
@@ -630,25 +640,59 @@ def choose_show_in_popover(driver, wait, title):
     print(f"Выбран фильм '{selected_title}' (совпадение {score:.2f})")
 
 
-def open_move_dialog(driver, wait, row):
-    move_button = row.find_element(By.CLASS_NAME, "moveRowBtn")
-    driver.execute_script(
-        "arguments[0].scrollIntoView({block: 'center'});", move_button
-    )
-    wait.until(EC.element_to_be_clickable(move_button)).click()
+def open_move_dialog(driver, wait, day_index, row):
+    title = row_title(row)
+    start_time = row_start_time(row)
+    last_error = None
 
-    menu_show = wait.until(
-        EC.visibility_of_element_located((By.ID, "menuShow"))
-    )
-    menu_show.click()
+    for attempt in range(1, 4):
+        try:
+            current_row = find_show_row(driver, day_index, title, start_time)
+            if current_row is None:
+                raise RuntimeError(
+                    f"Блок '{title}' в {start_time} исчез после перерисовки"
+                )
 
-    move_to = wait.until(
-        EC.visibility_of_element_located((By.ID, "moveTo"))
-    )
-    wait.until(EC.element_to_be_clickable(move_to)).click()
-    return wait.until(
-        EC.visibility_of_element_located((By.ID, "dateTimeModal"))
-    )
+            driver.execute_script(
+                "arguments[0].scrollIntoView({block: 'center'});", current_row
+            )
+            ActionChains(driver).move_to_element(current_row).perform()
+            move_button = current_row.find_element(By.CLASS_NAME, "moveRowBtn")
+            try:
+                move_button.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", move_button)
+
+            menu_show = WebDriverWait(driver, 4).until(
+                EC.visibility_of_element_located((By.ID, "menuShow"))
+            )
+            try:
+                menu_show.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", menu_show)
+
+            move_to = WebDriverWait(driver, 4).until(
+                EC.visibility_of_element_located((By.ID, "moveTo"))
+            )
+            try:
+                move_to.click()
+            except Exception:
+                driver.execute_script("arguments[0].click();", move_to)
+
+            return wait.until(
+                EC.visibility_of_element_located((By.ID, "dateTimeModal"))
+            )
+        except Exception as error:
+            last_error = error
+            print(
+                f"Повтор открытия меню переноса {attempt}/3 "
+                f"для '{title}' в {start_time}"
+            )
+            time.sleep(0.7)
+
+    raise RuntimeError(
+        f"Не удалось открыть меню переноса для '{title}' в {start_time}"
+    ) from last_error
 
 
 def click_exact_text(elements, expected, description):
@@ -733,7 +777,7 @@ def schedule_show(driver, wait, day_index, show):
     print(
         f"Создан временный блок '{row_title(row)}' в {row_start_time(row) or 'неизвестное время'}"
     )
-    modal = open_move_dialog(driver, wait, row)
+    modal = open_move_dialog(driver, wait, day_index, row)
     set_modal_datetime(driver, wait, modal, show["date"], hour, minute)
 
     wait.until(lambda d: show_exists(d, day_index, title, hour, minute))
