@@ -902,31 +902,31 @@ options.add_argument("--disable-blink-features=AutomationControlled")
 
 driver = None
 env_driver_path = os.getenv("CHROMEDRIVER_PATH")
-fallback_driver_paths = [
-    Path(r"C:\Users\Ust-Kinel\Desktop\autometization\chromedriver-win64\chromedriver.exe"),
-    Path("/opt/homebrew/bin/chromedriver"),
-]
+project_driver_path = BASE_DIR / "drivers" / "chromedriver-win64" / "chromedriver.exe"
+driver_paths = [project_driver_path]
 
 if env_driver_path:
-    fallback_driver_paths.insert(0, Path(env_driver_path))
+    driver_paths.insert(0, Path(env_driver_path))
 
-try:
-    # Selenium Manager подбирает совместимый драйвер под текущий Chrome.
-    print("Пробуем запуск Chrome через Selenium Manager (автоподбор драйвера)...")
-    driver = webdriver.Chrome(options=options)
-    print("✅ Chrome запущен через Selenium Manager.")
-except Exception as e:
-    print(f"⚠️ Selenium Manager не сработал: {e}")
-    for candidate in fallback_driver_paths:
-        if not candidate.exists():
-            continue
-        try:
-            print(f"Пробуем локальный ChromeDriver: {candidate}")
-            driver = webdriver.Chrome(service=Service(str(candidate)), options=options)
-            print(f"✅ Chrome запущен с локальным ChromeDriver: {candidate}")
-            break
-        except Exception as fallback_error:
-            print(f"⚠️ Не удалось запустить через {candidate}: {fallback_error}")
+for candidate in driver_paths:
+    if not candidate.exists():
+        print(f"Локальный ChromeDriver не найден: {candidate}")
+        continue
+    try:
+        print(f"Пробуем локальный ChromeDriver: {candidate}")
+        driver = webdriver.Chrome(service=Service(str(candidate)), options=options)
+        print(f"✅ Chrome запущен с локальным ChromeDriver: {candidate}")
+        break
+    except Exception as local_driver_error:
+        print(f"⚠️ Не удалось запустить через {candidate}: {local_driver_error}")
+
+if driver is None:
+    try:
+        print("Пробуем запуск Chrome через Selenium Manager (резервный вариант)...")
+        driver = webdriver.Chrome(options=options)
+        print("✅ Chrome запущен через Selenium Manager.")
+    except Exception as manager_error:
+        print(f"⚠️ Selenium Manager не сработал: {manager_error}")
 
 if driver is None:
     raise RuntimeError(

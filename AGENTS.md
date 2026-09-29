@@ -11,6 +11,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 - `automation_artifacts/barco_automation.log` -> append-only console and exception log.
 - `automation_artifacts/schedule.json` -> normalized schedule generated from the Excel input on every run.
 - `automation_artifacts/screenshots/` -> screenshots captured by selected failure handlers.
+- `drivers/chromedriver-win64/chromedriver.exe` -> bundled Windows ChromeDriver 153 used before Selenium Manager.
 - `Рассписание*.xlsx` or `Расписание*.xlsx` -> expected Excel input in the repository root; not committed by default.
 - `__pycache__/` -> generated Python bytecode; not application source.
 - `docs/ARCHITECTURE.md` -> detailed data flow, Selenium sequence, selectors, and known risks.
@@ -20,7 +21,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 Install runtime dependencies:
 
 ```powershell
-py -m pip install selenium pandas openpyxl
+py -m pip install selenium openpyxl
 ```
 
 Run on the Windows workstation with access to Barco:
@@ -29,7 +30,7 @@ Run on the Windows workstation with access to Barco:
 py barco_open_chrome.py
 ```
 
-Run with an explicit ChromeDriver if Selenium Manager cannot resolve one:
+Override the bundled ChromeDriver when testing another Chrome version:
 
 ```powershell
 $env:CHROMEDRIVER_PATH="C:\path\to\chromedriver.exe"
@@ -58,7 +59,8 @@ There is currently no automated test, build, migration, or deployment command.
 - `div` and `span` values are read through `.text` or `get_attribute(...)`, not `.value`.
 - Logs must remain enabled; failures are diagnosed from `automation_artifacts/barco_automation.log` on the remote workstation.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
-- `selenium`, `pandas`, and an Excel engine such as `openpyxl` are required, but no dependency lock file exists yet.
+- `selenium` and `openpyxl` are required, but no dependency lock file exists yet.
+- The bundled driver supports Chrome 153. If Chrome updates to another major version, replace the binary or set `CHROMEDRIVER_PATH`; Selenium Manager is the fallback.
 - The tracked `__pycache__/barco_open_chrome.cpython-314.pyc` is generated output and should not be treated as source.
 
 # Docs Links
