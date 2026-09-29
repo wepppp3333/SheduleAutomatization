@@ -492,10 +492,23 @@ def find_show_row(driver, day_index, title, start_time=None):
     return None
 
 
-def wait_for_show_row(driver, day_index, title, start_time, timeout=12):
-    return WebDriverWait(driver, timeout).until(
-        lambda d: find_show_row(d, day_index, title, start_time)
-    )
+def get_matching_show_rows(driver, day_index, title):
+    day_view = get_day_view(driver, day_index)
+    return [
+        row
+        for row in day_view.find_elements(By.CLASS_NAME, "rowItem")
+        if titles_match(title, row_title(row))
+    ]
+
+
+def wait_for_new_show_row(driver, day_index, title, existing_row_ids, timeout=12):
+    def find_new_row(current_driver):
+        for row in get_matching_show_rows(current_driver, day_index, title):
+            if row.id not in existing_row_ids:
+                return row
+        return False
+
+    return WebDriverWait(driver, timeout).until(find_new_row)
 
 
 def show_exists(driver, day_index, title, hour, minute):
@@ -674,14 +687,21 @@ def schedule_show(driver, wait, day_index, show):
         print(f"Сеанс уже существует: '{title}' в {expected_time}. Пропускаем.")
         return
 
-    _, temporary_time = click_free_hour_line(driver, day_index)
+    existing_row_ids = {
+        row.id for row in get_matching_show_rows(driver, day_index, title)
+    }
+
+    click_free_hour_line(driver, day_index)
     choose_show_in_popover(driver, wait, title)
 
-    row = wait_for_show_row(
+    row = wait_for_new_show_row(
         driver,
         day_index,
         title,
-        temporary_time,
+        existing_row_ids,
+    )
+    print(
+        f"Создан временный блок '{row_title(row)}' в {row_start_time(row) or 'неизвестное время'}"
     )
     modal = open_move_dialog(driver, wait, row)
     set_modal_datetime(driver, wait, modal, show["date"], hour, minute)
