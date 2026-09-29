@@ -802,21 +802,31 @@ class Tee:
 
     def write(self, data):
         for stream in self.streams:
+            if getattr(stream, "closed", False):
+                continue
             stream.write(data)
             stream.flush()
 
     def flush(self):
         for stream in self.streams:
+            if getattr(stream, "closed", False):
+                continue
             stream.flush()
 
 
 log_file = LOG_PATH.open("a", encoding="utf-8")
-sys.stdout = Tee(sys.__stdout__, log_file)
-sys.stderr = Tee(sys.__stderr__, log_file)
+stdout_tee = Tee(sys.__stdout__, log_file)
+stderr_tee = Tee(sys.__stderr__, log_file)
+sys.stdout = stdout_tee
+sys.stderr = stderr_tee
 print(f"\n===== Start run: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')} =====")
 
 
 def _close_log_file():
+    if sys.stdout is stdout_tee:
+        sys.stdout = sys.__stdout__
+    if sys.stderr is stderr_tee:
+        sys.stderr = sys.__stderr__
     if not log_file.closed:
         log_file.close()
 
