@@ -3,5 +3,10 @@
     "label": "Лукоянов",
     "api_url": "http://100.118.9.80:8080",
     "api_token_env": "LUKOYANOV_API_TOKEN"
+  },
+  "kinel": {
+    "label": "Кинель",
+    "api_url": "http://100.78.107.67:8080",
+    "api_token_env": "KINEL_API_TOKEN"
   }
 }
