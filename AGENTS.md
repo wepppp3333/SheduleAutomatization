@@ -7,6 +7,9 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 - `barco_open_chrome.py` -> main automation entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
 - `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
 - `start_automation_server.ps1` -> starts the handler on the computer's Tailscale IPv4 address and port 8080.
+- `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
+- `cinemas.json` -> non-secret cinema labels, Tailscale API URLs, and names of token environment variables.
+- `start_telegram_bot.ps1` -> validates required environment variables and starts the Telegram bot.
 - `requirements.txt` -> Python runtime dependencies for automation and the API handler.
 - `README.md` -> minimal repository title; not yet a setup guide.
 - `test.html` -> unrelated HTML scratch file; not used by the Python automation.

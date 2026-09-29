@@ -54,3 +54,27 @@ Invoke-RestMethod `
   -Uri "http://TAILSCALE_IP:8080/status" `
   -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
 ```
+
+## Telegram-бот
+
+Создайте бота через `@BotFather`, затем задайте токен и API-токен кинотеатра:
+
+```powershell
+[Environment]::SetEnvironmentVariable("TELEGRAM_BOT_TOKEN", "ТОКЕН_ОТ_BOTFATHER", "User")
+[Environment]::SetEnvironmentVariable("LUKOYANOV_API_TOKEN", "API_ТОКЕН_ЛУКОЯНОВА", "User")
+```
+
+В новом PowerShell запустите:
+
+```powershell
+.\start_telegram_bot.ps1
+```
+
+Отправьте боту `/whoami`, сохраните полученный числовой ID и остановите бота.
+Разрешите этому пользователю управление:
+
+```powershell
+[Environment]::SetEnvironmentVariable("TELEGRAM_ALLOWED_USER_IDS", "ВАШ_TELEGRAM_ID", "User")
+```
+
+После перезапуска команда `/start` покажет кнопки запуска и проверки статуса.

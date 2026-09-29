@@ -1,4 +1,6 @@
 fastapi
+httpx
 openpyxl
+python-telegram-bot
 selenium
 uvicorn
