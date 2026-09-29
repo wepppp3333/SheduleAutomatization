@@ -6,7 +6,7 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import StaleElementReferenceException
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
-from datetime import datetime
+from datetime import datetime, time as datetime_time
 from pathlib import Path
 from collections import defaultdict
 import pandas as pd
@@ -46,6 +46,30 @@ def find_excel_file():
     raise FileNotFoundError(
         f"Excel файл с именем 'Рассписание' не найден в папке проекта: {BASE_DIR}"
     )
+
+
+def normalize_excel_time(value):
+    if pd.isna(value):
+        return None
+
+    if isinstance(value, str):
+        match = re.fullmatch(r"\s*(\d{1,2}):(\d{2})(?::\d{2})?\s*", value)
+        if not match:
+            return None
+        hour, minute = map(int, match.groups())
+    elif isinstance(value, datetime):
+        hour, minute = value.hour, value.minute
+    elif isinstance(value, datetime_time):
+        hour, minute = value.hour, value.minute
+    elif isinstance(value, (int, float)):
+        total_minutes = round((float(value) % 1) * 24 * 60) % (24 * 60)
+        hour, minute = divmod(total_minutes, 60)
+    else:
+        return None
+
+    if not (0 <= hour <= 23 and 0 <= minute <= 59):
+        return None
+    return f"{hour:02d}:{minute:02d}"
 
 
 def _css_px_to_float(value):
@@ -785,12 +809,13 @@ for i in range(len(df)):
    elif isinstance(first_col,datetime):
       current_date = first_col.strftime("%d.%m.%Y")
 
-
-   if isinstance(first_col,str) and ":" in first_col and pd.notna(second_col) and current_date:
+   show_time = normalize_excel_time(first_col)
+   if show_time and pd.notna(second_col) and current_date:
+        raw_title = str(second_col).strip()
         schedule.append({
             "date": current_date,
-            "time": first_col.strip(),
-            "title": re.split(r"\s+\d+D|,\s*\d+\+?", second_col.strip())[0]
+            "time": show_time,
+            "title": re.split(r"\s+\d+D|,\s*\d+\+?", raw_title)[0]
         })      
    
 
