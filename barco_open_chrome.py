@@ -9,7 +9,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime, time as datetime_time
 from pathlib import Path
 from collections import defaultdict
-import pandas as pd
+from openpyxl import load_workbook
+import math
 import re
 import json
 import time
@@ -49,7 +50,7 @@ def find_excel_file():
 
 
 def normalize_excel_time(value):
-    if pd.isna(value):
+    if value is None or (isinstance(value, float) and math.isnan(value)):
         return None
 
     if isinstance(value, str):
@@ -70,6 +71,15 @@ def normalize_excel_time(value):
     if not (0 <= hour <= 23 and 0 <= minute <= 59):
         return None
     return f"{hour:02d}:{minute:02d}"
+
+
+def cell_has_red_font(cell):
+    color = cell.font.color
+    if color is None:
+        return False
+    if color.type == "rgb" and color.rgb:
+        return color.rgb.upper()[-6:] == "FF0000"
+    return color.type == "indexed" and color.indexed == 10
 
 
 def _css_px_to_float(value):
@@ -786,14 +796,17 @@ else:
 excel_path = find_excel_file()
 print(f"Excel для загрузки: {excel_path}")
 
-df = pd.read_excel(excel_path,header=None)
+workbook = load_workbook(excel_path, data_only=True)
+worksheet = workbook.active
 
 schedule = []
 current_date = None
 
-for i in range(len(df)):
-   first_col = df.iloc[i,0]
-   second_col = df.iloc[i,1]
+for row in worksheet.iter_rows():
+   first_cell = row[0]
+   second_cell = row[1]
+   first_col = first_cell.value
+   second_col = second_cell.value
 
    if isinstance(first_col,str):
       try:
@@ -806,7 +819,12 @@ for i in range(len(df)):
       current_date = first_col.strftime("%d.%m.%Y")
 
    show_time = normalize_excel_time(first_col)
-   if show_time and pd.notna(second_col) and current_date:
+   if show_time and second_col is not None and current_date:
+        if cell_has_red_font(first_cell) or cell_has_red_font(second_cell):
+            print(
+                f"Пропущена красная строка: {show_time} — {str(second_col).strip()}"
+            )
+            continue
         raw_title = str(second_col).strip()
         schedule.append({
             "date": current_date,
