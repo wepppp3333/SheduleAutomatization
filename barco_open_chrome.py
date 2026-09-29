@@ -640,6 +640,16 @@ def choose_show_in_popover(driver, wait, title):
     print(f"Выбран фильм '{selected_title}' (совпадение {score:.2f})")
 
 
+def find_visible_element(driver, by, value):
+    for element in driver.find_elements(by, value):
+        try:
+            if element.is_displayed():
+                return element
+        except StaleElementReferenceException:
+            continue
+    return False
+
+
 def open_move_dialog(driver, wait, day_index, row):
     title = row_title(row)
     start_time = row_start_time(row)
@@ -664,7 +674,7 @@ def open_move_dialog(driver, wait, day_index, row):
                 driver.execute_script("arguments[0].click();", move_button)
 
             menu_show = WebDriverWait(driver, 4).until(
-                EC.visibility_of_element_located((By.ID, "menuShow"))
+                lambda d: find_visible_element(d, By.ID, "menuShow")
             )
             try:
                 menu_show.click()
@@ -672,7 +682,7 @@ def open_move_dialog(driver, wait, day_index, row):
                 driver.execute_script("arguments[0].click();", menu_show)
 
             move_to = WebDriverWait(driver, 4).until(
-                EC.visibility_of_element_located((By.ID, "moveTo"))
+                lambda d: find_visible_element(d, By.ID, "moveTo")
             )
             try:
                 move_to.click()
