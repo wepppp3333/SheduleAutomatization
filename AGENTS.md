@@ -6,7 +6,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 
 - `barco_open_chrome.py` -> main automation entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
 - `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
-- `start_automation_server.ps1` -> starts the handler on the computer's Tailscale IPv4 address and port 8080.
+- `start_automation_server.ps1` -> discovers the computer's Tailscale IPv4 address and starts the handler on all local interfaces, port 8080.
 - `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
 - `cinemas.json` -> non-secret cinema labels, Tailscale API URLs, and names of token environment variables.
 - `start_telegram_bot.ps1` -> validates required environment variables and starts the Telegram bot.
@@ -57,6 +57,13 @@ Start the Tailscale-only API handler after setting `BARCO_API_TOKEN`:
 .\start_automation_server.ps1
 ```
 
+Start the Telegram bot after loading its local environment variables:
+
+```bash
+set -a; source .env; set +a
+.venv/bin/python telegram_bot.py
+```
+
 # Rules & Gotchas
 
 - Run the real automation only on a machine that can reach `https://192.168.100.2:43744`.
@@ -71,6 +78,7 @@ Start the Tailscale-only API handler after setting `BARCO_API_TOKEN`:
 - `div` and `span` values are read through `.text` or `get_attribute(...)`, not `.value`.
 - Logs must remain enabled; failures are diagnosed from `automation_artifacts/barco_automation.log` on the remote workstation.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
+- On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. Both cinema IPs need explicit host routes through the active Tailscale `utun` interface.
 - `selenium` and `openpyxl` are required, but no dependency lock file exists yet.
 - The bundled driver supports Chrome 153. If Chrome updates to another major version, replace the binary or set `CHROMEDRIVER_PATH`; Selenium Manager is the fallback.
 - The tracked `__pycache__/barco_open_chrome.cpython-314.pyc` is generated output and should not be treated as source.
