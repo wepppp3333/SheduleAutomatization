@@ -792,8 +792,7 @@ def schedule_show(driver, wait, day_index, show):
     modal = open_move_dialog(driver, wait, day_index, row)
     set_modal_datetime(driver, wait, modal, show["date"], hour, minute)
 
-    current_day_index = find_date_column(driver, wait, show["date"], max_week_changes=1)
-    wait.until(lambda d: show_exists(d, current_day_index, title, hour, minute))
+    wait.until(lambda d: show_exists(d, day_index, title, hour, minute))
     print(f"Фильм '{title}' установлен на {show['date']} {expected_time}")
 
 
