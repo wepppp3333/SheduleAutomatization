@@ -131,12 +131,39 @@ def click_control(driver, element_id):
 
 
 def open_page(driver, base_url, page):
-    driver.get(f"{base_url}/#sms/{page}")
+    route = f"sms/{page}"
+    marker_by_page = {
+        "player": "btnScheduler",
+        "control": "btnLamp",
+    }
+    marker_id = marker_by_page[page]
+
+    driver.get(f"{base_url}/#{route}")
     wait_for_model(driver)
+
+    # Backbone ignores navigation when the requested hash is already current.
+    # Force a route transition when the model loaded but the view did not render.
+    if not driver.find_elements(By.ID, marker_id):
+        driver.execute_script(
+            """
+const route = arguments[0];
+if (window.app && typeof window.app.navigate === 'function') {
+    window.app.navigate('__force_reload__', {trigger: false, replace: true});
+    window.app.navigate(route, {trigger: true, replace: true});
+} else {
+    window.location.hash = '#' + route;
+}
+""",
+            route,
+        )
+
     WebDriverWait(driver, 20).until(
         lambda current: current.execute_script(
-            "return window.location.hash === arguments[0];", f"#sms/{page}"
+            "return window.location.hash === arguments[0];", f"#{route}"
         )
+    )
+    WebDriverWait(driver, 20).until(
+        lambda current: current.find_elements(By.ID, marker_id)
     )
     print(f"Открыта вкладка {page}")
 
@@ -262,6 +289,13 @@ def main():
     except Exception:
         print("Необработанная ошибка управления Barco:")
         traceback.print_exc()
+        if driver is not None:
+            screenshot_path = ARTIFACTS_DIR / "barco_player_control_error.png"
+            try:
+                driver.save_screenshot(str(screenshot_path))
+                print(f"Скриншот ошибки: {screenshot_path}")
+            except Exception as screenshot_error:
+                print(f"Не удалось сохранить скриншот: {screenshot_error}")
         raise
     finally:
         if driver is not None:
