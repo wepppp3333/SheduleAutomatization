@@ -8,5 +8,10 @@
     "label": "Кинель",
     "api_url": "http://100.78.107.67:8080",
     "api_token_env": "KINEL_API_TOKEN"
+  },
+  "novospasskoye": {
+    "label": "Новоспасское",
+    "api_url": "http://100.107.6.2:8080",
+    "api_token_env": "NOVOSPASSKOYE_API_TOKEN"
   }
 }
