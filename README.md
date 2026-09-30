@@ -68,6 +68,16 @@ Invoke-RestMethod `
 Операция выполняется асинхронно. Проверяйте результат через `/status` и журнал
 `automation_artifacts/barco_player_control.log`.
 
+Отключить Scheduler, закрыть заслонку и выключить лампу, не останавливая фильм
+отдельной командой Stop:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://TAILSCALE_IP:8080/player/disable-schedule-and-projector" `
+  -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
+```
+
 ## Telegram-бот
 
 Создайте бота через `@BotFather`, затем задайте токен и API-токен кинотеатра:

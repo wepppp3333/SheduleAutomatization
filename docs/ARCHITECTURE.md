@@ -106,6 +106,11 @@ The FastAPI endpoint is `POST /player/shutdown-and-schedule`. It shares the same
 single-job lock and `/status` response as schedule generation. Runtime details are
 written to `automation_artifacts/barco_player_control.log`.
 
+`barco_player_control.py disable-schedule-and-projector` is the second control
+action. It sends `changeMode(0)` when necessary, closes the dowser, and turns the
+lamp off. It deliberately does not send `stop` and does not restore Scheduler.
+The endpoint is `POST /player/disable-schedule-and-projector`.
+
 ## Important Selectors
 
 | Purpose | Selector |

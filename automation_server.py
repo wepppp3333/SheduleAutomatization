@@ -139,3 +139,20 @@ def shutdown_player_and_enable_schedule(x_api_key: str = Header(default="")):
             "shutdown-and-schedule",
         ],
     )
+
+
+@app.post("/player/disable-schedule-and-projector", status_code=202)
+def disable_schedule_and_projector(x_api_key: str = Header(default="")):
+    require_api_token(x_api_key)
+
+    if not PLAYER_CONTROL_SCRIPT.exists():
+        raise HTTPException(status_code=500, detail="Player control script not found")
+
+    return start_job(
+        action="disable-schedule-and-projector",
+        command=[
+            sys.executable,
+            str(PLAYER_CONTROL_SCRIPT),
+            "disable-schedule-and-projector",
+        ],
+    )

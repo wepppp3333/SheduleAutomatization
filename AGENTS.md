@@ -5,7 +5,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 # Directory Map
 
 - `barco_open_chrome.py` -> main automation entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
-- `barco_player_control.py` -> state-aware Player/Control automation; stops playback, closes the dowser, turns the lamp off, and restores Scheduler mode.
+- `barco_player_control.py` -> state-aware Player/Control automation for safe shutdown with either Scheduler restored or left disabled.
 - `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
 - `start_automation_server.ps1` -> discovers the computer's Tailscale IPv4 address and starts the handler on all local interfaces, port 8080.
 - `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
@@ -81,6 +81,7 @@ set -a; source .env; set +a
 - Logs must remain enabled; failures are diagnosed from `automation_artifacts/barco_automation.log` on the remote workstation.
 - Player/Control buttons are toggles. Never click lamp, dowser, or Scheduler blindly; read `g_MainStatusModel`, issue only the necessary transition, and wait for the confirmed target state.
 - The safe shutdown flow must end with `playerMode == 1`, `isProjectorLampOn == false`, and `isProjectorDowserClosed == true`.
+- The disable-projector flow does not send Stop and must end with Scheduler disabled, lamp off, and dowser closed.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
 - On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. Both cinema IPs need explicit host routes through the active Tailscale `utun` interface.
 - `selenium` and `openpyxl` are required, but no dependency lock file exists yet.

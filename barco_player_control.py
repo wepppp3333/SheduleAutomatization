@@ -188,68 +188,106 @@ def unlock_controls_if_needed(driver):
         print(f"Проверка блокировки пропущена: {error}")
 
 
-def shutdown_and_schedule(driver, base_url):
-    unlock_controls_if_needed(driver)
-    status = main_status(driver)
-    print(f"Начальное состояние: {status}")
-
+def disable_scheduler(driver, status):
     if status["playerMode"] == PLAYER_MODE_SCHEDULER:
         send_sms_command(driver, "changeMode", PLAYER_MODE_NORMAL)
-        status = wait_for_status(
+        return wait_for_status(
             driver,
             lambda value: value["playerMode"] == PLAYER_MODE_NORMAL,
             "Scheduler выключен",
         )
-    else:
-        print("Scheduler уже выключен")
+    print("Scheduler уже выключен")
+    return status
 
-    if status["playerState"] not in (PLAYER_STATE_CLEARED, PLAYER_STATE_STOPPED):
-        send_sms_command(driver, "stop")
-        wait_for_status(
-            driver,
-            lambda value: value["playerState"] in (
-                PLAYER_STATE_CLEARED,
-                PLAYER_STATE_STOPPED,
-            ),
-            "воспроизведение остановлено",
-        )
-    else:
+
+def stop_player(driver, status):
+    if status["playerState"] in (PLAYER_STATE_CLEARED, PLAYER_STATE_STOPPED):
         print("Player уже остановлен или очищен")
+        return status
 
-    status = main_status(driver)
+    send_sms_command(driver, "stop")
+    return wait_for_status(
+        driver,
+        lambda value: value["playerState"] in (
+            PLAYER_STATE_CLEARED,
+            PLAYER_STATE_STOPPED,
+        ),
+        "воспроизведение остановлено",
+    )
 
+
+def close_dowser(driver, status):
     if not status["dowserClosed"]:
         send_sms_command(driver, "setDowser", True)
-        wait_for_status(
+        return wait_for_status(
             driver,
             lambda value: value["dowserClosed"],
             "заслонка закрыта",
         )
-    else:
-        print("Заслонка уже закрыта")
+    print("Заслонка уже закрыта")
+    return status
 
-    status = main_status(driver)
+
+def turn_lamp_off(driver, status):
     if status["lampOn"]:
         send_sms_command(driver, "setLamp", False)
-        wait_for_status(
+        return wait_for_status(
             driver,
             lambda value: not value["lampOn"],
             "лампа выключена",
             timeout=60,
         )
-    else:
-        print("Лампа уже выключена")
+    print("Лампа уже выключена")
+    return status
 
-    status = main_status(driver)
+
+def enable_scheduler(driver, status):
     if status["playerMode"] != PLAYER_MODE_SCHEDULER:
         send_sms_command(driver, "changeMode", PLAYER_MODE_SCHEDULER)
-        status = wait_for_status(
+        return wait_for_status(
             driver,
             lambda value: value["playerMode"] == PLAYER_MODE_SCHEDULER,
             "Scheduler включен",
         )
+    print("Scheduler уже включен")
+    return status
 
-    if status["lampOn"] or not status["dowserClosed"]:
+
+def prepare_control(driver):
+    unlock_controls_if_needed(driver)
+    status = main_status(driver)
+    print(f"Начальное состояние: {status}")
+    return status
+
+
+def shutdown_and_schedule(driver):
+    status = prepare_control(driver)
+    status = disable_scheduler(driver, status)
+    status = stop_player(driver, status)
+    status = close_dowser(driver, status)
+    status = turn_lamp_off(driver, status)
+    status = enable_scheduler(driver, status)
+
+    if (
+        status["playerMode"] != PLAYER_MODE_SCHEDULER
+        or status["lampOn"]
+        or not status["dowserClosed"]
+    ):
+        raise RuntimeError(f"Небезопасное итоговое состояние: {status}")
+    print(f"Операция завершена успешно. Итоговое состояние: {status}")
+
+
+def disable_schedule_and_projector(driver):
+    status = prepare_control(driver)
+    status = disable_scheduler(driver, status)
+    status = close_dowser(driver, status)
+    status = turn_lamp_off(driver, status)
+
+    if (
+        status["playerMode"] == PLAYER_MODE_SCHEDULER
+        or status["lampOn"]
+        or not status["dowserClosed"]
+    ):
         raise RuntimeError(f"Небезопасное итоговое состояние: {status}")
     print(f"Операция завершена успешно. Итоговое состояние: {status}")
 
@@ -258,7 +296,7 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Barco player and projector control")
     parser.add_argument(
         "action",
-        choices=["shutdown-and-schedule"],
+        choices=["shutdown-and-schedule", "disable-schedule-and-projector"],
         help="Safe projector control action",
     )
     return parser.parse_args()
@@ -273,7 +311,9 @@ def main():
         driver = build_driver()
         login(driver, base_url)
         if args.action == "shutdown-and-schedule":
-            shutdown_and_schedule(driver, base_url)
+            shutdown_and_schedule(driver)
+        elif args.action == "disable-schedule-and-projector":
+            disable_schedule_and_projector(driver)
     except Exception:
         print("Необработанная ошибка управления Barco:")
         traceback.print_exc()
