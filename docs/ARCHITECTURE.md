@@ -91,14 +91,15 @@ The active code currently follows this sequence for every show:
 ## Player Control Sequence
 
 `barco_player_control.py shutdown-and-schedule` performs an idempotent shutdown
-sequence through the same Barco UI:
+sequence through Barco's authenticated browser session. It calls the same
+`SmsComm` commands used by the UI, avoiding dependency on version-specific DOM:
 
 1. Open Player and read `g_MainStatusModel`.
-2. If Scheduler mode is active, switch to Normal mode and confirm `playerMode == 0`.
-3. If playback is active, click Stop once and wait for Cleared or Stopped state.
-4. Open Control and close the dowser only when it is currently open.
+2. If Scheduler mode is active, send `changeMode(0)` and confirm `playerMode == 0`.
+3. If playback is active, send `stop` once and wait for Cleared or Stopped state.
+4. Send `setDowser(true)` only when the dowser is currently open.
 5. Turn the lamp off only when it is currently on.
-6. Return to Player, enable Scheduler, and confirm `playerMode == 1`.
+6. Send `changeMode(1)` and confirm `playerMode == 1`.
 7. Fail unless the final state has Scheduler enabled, lamp off, and dowser closed.
 
 The FastAPI endpoint is `POST /player/shutdown-and-schedule`. It shares the same

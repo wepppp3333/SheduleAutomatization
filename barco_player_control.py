@@ -1,5 +1,6 @@
 import argparse
 import atexit
+import json
 import os
 import sys
 import time
@@ -118,54 +119,44 @@ def wait_for_status(driver, predicate, description, timeout=30):
     return status
 
 
-def click_control(driver, element_id):
-    element = WebDriverWait(driver, 15).until(
-        lambda current: current.find_element(By.ID, element_id)
-    )
-    WebDriverWait(driver, 15).until(
-        lambda _current: "disabled" not in element.get_attribute("class").split()
-    )
-    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
-    element.click()
-    print(f"Нажата кнопка #{element_id}")
+def send_sms_command(driver, method, *parameters, timeout=20):
+    driver.set_script_timeout(timeout)
+    raw_result = driver.execute_async_script(
+        """
+const method = arguments[0];
+const parameters = arguments[1];
+const done = arguments[arguments.length - 1];
 
+if (!window.SmsComm || typeof window.SmsComm[method] !== 'function') {
+    done(JSON.stringify({success: false, clientError: 'SmsComm method unavailable'}));
+    return;
+}
 
-def open_page(driver, base_url, page):
-    route = f"sms/{page}"
-    marker_by_page = {
-        "player": "btnScheduler",
-        "control": "btnLamp",
+const callback = {
+    callback: function(raw) {
+        done(typeof raw === 'string' ? raw : JSON.stringify(raw));
     }
-    marker_id = marker_by_page[page]
+};
 
-    driver.get(f"{base_url}/#{route}")
-    wait_for_model(driver)
-
-    # Backbone ignores navigation when the requested hash is already current.
-    # Force a route transition when the model loaded but the view did not render.
-    if not driver.find_elements(By.ID, marker_id):
-        driver.execute_script(
-            """
-const route = arguments[0];
-if (window.app && typeof window.app.navigate === 'function') {
-    window.app.navigate('__force_reload__', {trigger: false, replace: true});
-    window.app.navigate(route, {trigger: true, replace: true});
-} else {
-    window.location.hash = '#' + route;
+try {
+    window.SmsComm[method].apply(window.SmsComm, parameters.concat([callback]));
+} catch (error) {
+    done(JSON.stringify({success: false, clientError: String(error)}));
 }
 """,
-            route,
-        )
+        method,
+        list(parameters),
+    )
 
-    WebDriverWait(driver, 20).until(
-        lambda current: current.execute_script(
-            "return window.location.hash === arguments[0];", f"#{route}"
-        )
-    )
-    WebDriverWait(driver, 20).until(
-        lambda current: current.find_elements(By.ID, marker_id)
-    )
-    print(f"Открыта вкладка {page}")
+    try:
+        result = json.loads(raw_result) if isinstance(raw_result, str) else raw_result
+    except json.JSONDecodeError as error:
+        raise RuntimeError(f"Некорректный ответ команды {method}: {raw_result}") from error
+
+    if not isinstance(result, dict) or not result.get("success"):
+        raise RuntimeError(f"Команда {method} завершилась ошибкой: {result}")
+    print(f"Команда {method} выполнена: {result}")
+    return result
 
 
 def login(driver, base_url):
@@ -198,13 +189,12 @@ def unlock_controls_if_needed(driver):
 
 
 def shutdown_and_schedule(driver, base_url):
-    open_page(driver, base_url, "player")
     unlock_controls_if_needed(driver)
     status = main_status(driver)
     print(f"Начальное состояние: {status}")
 
     if status["playerMode"] == PLAYER_MODE_SCHEDULER:
-        click_control(driver, "btnScheduler")
+        send_sms_command(driver, "changeMode", PLAYER_MODE_NORMAL)
         status = wait_for_status(
             driver,
             lambda value: value["playerMode"] == PLAYER_MODE_NORMAL,
@@ -214,7 +204,7 @@ def shutdown_and_schedule(driver, base_url):
         print("Scheduler уже выключен")
 
     if status["playerState"] not in (PLAYER_STATE_CLEARED, PLAYER_STATE_STOPPED):
-        click_control(driver, "btnStop")
+        send_sms_command(driver, "stop")
         wait_for_status(
             driver,
             lambda value: value["playerState"] in (
@@ -226,11 +216,10 @@ def shutdown_and_schedule(driver, base_url):
     else:
         print("Player уже остановлен или очищен")
 
-    open_page(driver, base_url, "control")
     status = main_status(driver)
 
     if not status["dowserClosed"]:
-        click_control(driver, "btnDowser")
+        send_sms_command(driver, "setDowser", True)
         wait_for_status(
             driver,
             lambda value: value["dowserClosed"],
@@ -241,7 +230,7 @@ def shutdown_and_schedule(driver, base_url):
 
     status = main_status(driver)
     if status["lampOn"]:
-        click_control(driver, "btnLamp")
+        send_sms_command(driver, "setLamp", False)
         wait_for_status(
             driver,
             lambda value: not value["lampOn"],
@@ -251,10 +240,9 @@ def shutdown_and_schedule(driver, base_url):
     else:
         print("Лампа уже выключена")
 
-    open_page(driver, base_url, "player")
     status = main_status(driver)
     if status["playerMode"] != PLAYER_MODE_SCHEDULER:
-        click_control(driver, "btnScheduler")
+        send_sms_command(driver, "changeMode", PLAYER_MODE_SCHEDULER)
         status = wait_for_status(
             driver,
             lambda value: value["playerMode"] == PLAYER_MODE_SCHEDULER,
