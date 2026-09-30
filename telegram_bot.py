@@ -67,6 +67,12 @@ def main_keyboard():
                     callback_data="disable_projector_menu",
                 )
             ],
+            [
+                InlineKeyboardButton(
+                    "Остановить фильм и выключить очередь",
+                    callback_data="stop_disable_menu",
+                )
+            ],
             [InlineKeyboardButton("Статус", callback_data="status_menu")],
         ]
     )
@@ -153,6 +159,13 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if action == "stop_disable_menu":
+        await query.edit_message_text(
+            "В каком кинотеатре остановить фильм и полностью отключить показ?",
+            reply_markup=cinema_keyboard("stop_disable_confirm"),
+        )
+        return
+
     command, cinema_key = action.split(":", 1)
     cinema = CINEMAS.get(cinema_key)
     if not cinema:
@@ -217,6 +230,26 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if command == "stop_disable_confirm":
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "Подтвердить остановку",
+                        callback_data=f"stop_disable:{cinema_key}",
+                    )
+                ],
+                [InlineKeyboardButton("Отмена", callback_data="main")],
+            ]
+        )
+        await query.edit_message_text(
+            f"Выполнить в кинотеатре {cinema['label']}?\n\n"
+            "Фильм будет остановлен, очередь останется выключенной, "
+            "заслонка будет закрыта, лампа выключена.",
+            reply_markup=keyboard,
+        )
+        return
+
     try:
         cinema, api_token = get_cinema_credentials(cinema_key)
         headers = {"X-API-Key": api_token}
@@ -233,6 +266,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             elif command == "disable_projector":
                 response = await client.post(
                     f"{cinema['api_url'].rstrip('/')}/player/disable-schedule-and-projector",
+                    headers=headers,
+                )
+            elif command == "stop_disable":
+                response = await client.post(
+                    f"{cinema['api_url'].rstrip('/')}/player/stop-and-disable-schedule",
                     headers=headers,
                 )
             elif command == "status":
@@ -261,6 +299,12 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif command == "disable_projector":
             await query.edit_message_text(
                 f"Отключение очереди и проектора запущено: {cinema['label']}\n"
+                f"Job ID: {payload.get('job_id')}\n"
+                "Результат можно проверить кнопкой «Статус»."
+            )
+        elif command == "stop_disable":
+            await query.edit_message_text(
+                f"Остановка фильма и очереди запущена: {cinema['label']}\n"
                 f"Job ID: {payload.get('job_id')}\n"
                 "Результат можно проверить кнопкой «Статус»."
             )

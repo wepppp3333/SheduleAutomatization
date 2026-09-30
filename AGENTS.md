@@ -82,6 +82,7 @@ set -a; source .env; set +a
 - Player/Control buttons are toggles. Never click lamp, dowser, or Scheduler blindly; read `g_MainStatusModel`, issue only the necessary transition, and wait for the confirmed target state.
 - The safe shutdown flow must end with `playerMode == 1`, `isProjectorLampOn == false`, and `isProjectorDowserClosed == true`.
 - The disable-projector flow does not send Stop and must end with Scheduler disabled, lamp off, and dowser closed.
+- The stop-and-disable flow sends Stop once when needed and must end with playback stopped, Scheduler disabled, lamp off, and dowser closed.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
 - On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. Both cinema IPs need explicit host routes through the active Tailscale `utun` interface.
 - `selenium` and `openpyxl` are required, but no dependency lock file exists yet.

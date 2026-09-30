@@ -78,6 +78,15 @@ Invoke-RestMethod `
   -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
 ```
 
+Остановить фильм, отключить Scheduler, закрыть заслонку и выключить лампу:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://TAILSCALE_IP:8080/player/stop-and-disable-schedule" `
+  -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
+```
+
 ## Telegram-бот
 
 Создайте бота через `@BotFather`, затем задайте токен и API-токен кинотеатра:

@@ -292,11 +292,32 @@ def disable_schedule_and_projector(driver):
     print(f"Операция завершена успешно. Итоговое состояние: {status}")
 
 
+def stop_and_disable_schedule(driver):
+    status = prepare_control(driver)
+    status = disable_scheduler(driver, status)
+    status = stop_player(driver, status)
+    status = close_dowser(driver, status)
+    status = turn_lamp_off(driver, status)
+
+    if (
+        status["playerMode"] == PLAYER_MODE_SCHEDULER
+        or status["playerState"] not in (PLAYER_STATE_CLEARED, PLAYER_STATE_STOPPED)
+        or status["lampOn"]
+        or not status["dowserClosed"]
+    ):
+        raise RuntimeError(f"Небезопасное итоговое состояние: {status}")
+    print(f"Операция завершена успешно. Итоговое состояние: {status}")
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Barco player and projector control")
     parser.add_argument(
         "action",
-        choices=["shutdown-and-schedule", "disable-schedule-and-projector"],
+        choices=[
+            "shutdown-and-schedule",
+            "disable-schedule-and-projector",
+            "stop-and-disable-schedule",
+        ],
         help="Safe projector control action",
     )
     return parser.parse_args()
@@ -314,6 +335,8 @@ def main():
             shutdown_and_schedule(driver)
         elif args.action == "disable-schedule-and-projector":
             disable_schedule_and_projector(driver)
+        elif args.action == "stop-and-disable-schedule":
+            stop_and_disable_schedule(driver)
     except Exception:
         print("Необработанная ошибка управления Barco:")
         traceback.print_exc()

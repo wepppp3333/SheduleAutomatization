@@ -111,6 +111,11 @@ action. It sends `changeMode(0)` when necessary, closes the dowser, and turns th
 lamp off. It deliberately does not send `stop` and does not restore Scheduler.
 The endpoint is `POST /player/disable-schedule-and-projector`.
 
+`barco_player_control.py stop-and-disable-schedule` is the third control action.
+It disables Scheduler, stops active playback, closes the dowser, and turns the
+lamp off without restoring Scheduler. The endpoint is
+`POST /player/stop-and-disable-schedule`.
+
 ## Important Selectors
 
 | Purpose | Selector |
