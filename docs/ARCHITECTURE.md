@@ -88,6 +88,23 @@ The active code currently follows this sequence for every show:
 11. Verify that the title appears in the target column at the expected time.
 12. Stop on the first error and save a traceback and screenshot to avoid cascading bad entries.
 
+## Player Control Sequence
+
+`barco_player_control.py shutdown-and-schedule` performs an idempotent shutdown
+sequence through the same Barco UI:
+
+1. Open Player and read `g_MainStatusModel`.
+2. If Scheduler mode is active, switch to Normal mode and confirm `playerMode == 0`.
+3. If playback is active, click Stop once and wait for Cleared or Stopped state.
+4. Open Control and close the dowser only when it is currently open.
+5. Turn the lamp off only when it is currently on.
+6. Return to Player, enable Scheduler, and confirm `playerMode == 1`.
+7. Fail unless the final state has Scheduler enabled, lamp off, and dowser closed.
+
+The FastAPI endpoint is `POST /player/shutdown-and-schedule`. It shares the same
+single-job lock and `/status` response as schedule generation. Runtime details are
+written to `automation_artifacts/barco_player_control.log`.
+
 ## Important Selectors
 
 | Purpose | Selector |
@@ -102,6 +119,10 @@ The active code currently follows this sequence for every show:
 | Calendar | `.datepicker-days`, `.day` |
 | Time picker | `.timepicker`, `.timepicker-hour`, `.timepicker-minute` |
 | Final confirmation | `#confirmDateTimeBtn` |
+| Player stop | `#btnStop` |
+| Scheduler mode | `#btnScheduler` |
+| Projector lamp | `#btnLamp` |
+| Projector dowser | `#btnDowser` |
 
 ## Known Risks
 

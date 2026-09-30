@@ -55,6 +55,12 @@ def main_keyboard():
     return InlineKeyboardMarkup(
         [
             [InlineKeyboardButton("Сформировать расписание", callback_data="run_menu")],
+            [
+                InlineKeyboardButton(
+                    "Выключить фильм и включить очередь",
+                    callback_data="shutdown_schedule_menu",
+                )
+            ],
             [InlineKeyboardButton("Статус", callback_data="status_menu")],
         ]
     )
@@ -125,6 +131,14 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    if action == "shutdown_schedule_menu":
+        await query.edit_message_text(
+            "В каком кинотеатре остановить фильм, выключить проектор "
+            "и снова включить очередь?",
+            reply_markup=cinema_keyboard("shutdown_schedule_confirm"),
+        )
+        return
+
     command, cinema_key = action.split(":", 1)
     cinema = CINEMAS.get(cinema_key)
     if not cinema:
@@ -148,6 +162,27 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+
+    if command == "shutdown_schedule_confirm":
+        keyboard = InlineKeyboardMarkup(
+            [
+                [
+                    InlineKeyboardButton(
+                        "Подтвердить выключение",
+                        callback_data=f"shutdown_schedule:{cinema_key}",
+                    )
+                ],
+                [InlineKeyboardButton("Отмена", callback_data="main")],
+            ]
+        )
+        await query.edit_message_text(
+            f"Выполнить в кинотеатре {cinema['label']}?\n\n"
+            "Будет выключена очередь, остановлен фильм, закрыта заслонка, "
+            "выключена лампа и снова включена очередь.",
+            reply_markup=keyboard,
+        )
+        return
+
     try:
         cinema, api_token = get_cinema_credentials(cinema_key)
         headers = {"X-API-Key": api_token}
@@ -155,6 +190,11 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             if command == "run":
                 response = await client.post(
                     f"{cinema['api_url'].rstrip('/')}/run-schedule", headers=headers
+                )
+            elif command == "shutdown_schedule":
+                response = await client.post(
+                    f"{cinema['api_url'].rstrip('/')}/player/shutdown-and-schedule",
+                    headers=headers,
                 )
             elif command == "status":
                 response = await client.get(
@@ -173,9 +213,16 @@ async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 f"Расписание запущено: {cinema['label']}\n"
                 f"Job ID: {payload.get('job_id')}"
             )
+        elif command == "shutdown_schedule":
+            await query.edit_message_text(
+                f"Выключение запущено: {cinema['label']}\n"
+                f"Job ID: {payload.get('job_id')}\n"
+                "Результат можно проверить кнопкой «Статус»."
+            )
         else:
             await query.edit_message_text(
                 f"Статус {cinema['label']}: {payload.get('status')}\n"
+                f"Операция: {payload.get('action') or 'не указана'}\n"
                 f"Job ID: {payload.get('job_id') or 'нет'}\n"
                 f"Код завершения: {payload.get('exit_code')}"
             )

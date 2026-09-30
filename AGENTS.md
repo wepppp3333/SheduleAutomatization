@@ -5,6 +5,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 # Directory Map
 
 - `barco_open_chrome.py` -> main automation entry point; Excel parsing, logging, Chrome startup, login, and scheduler automation.
+- `barco_player_control.py` -> state-aware Player/Control automation; stops playback, closes the dowser, turns the lamp off, and restores Scheduler mode.
 - `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
 - `start_automation_server.ps1` -> discovers the computer's Tailscale IPv4 address and starts the handler on all local interfaces, port 8080.
 - `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
@@ -15,6 +16,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 - `test.html` -> unrelated HTML scratch file; not used by the Python automation.
 - `automation_artifacts/` -> runtime output created automatically; contains log, generated JSON, and screenshots.
 - `automation_artifacts/barco_automation.log` -> append-only console and exception log.
+- `automation_artifacts/barco_player_control.log` -> append-only log for Player/Control operations and confirmed hardware states.
 - `automation_artifacts/schedule.json` -> normalized schedule generated from the Excel input on every run.
 - `automation_artifacts/screenshots/` -> screenshots captured by selected failure handlers.
 - `drivers/chromedriver-win64/chromedriver.exe` -> bundled Windows ChromeDriver 153 used before Selenium Manager.
@@ -46,7 +48,7 @@ py barco_open_chrome.py
 Check syntax without running browser automation:
 
 ```powershell
-py -m py_compile barco_open_chrome.py
+py -m py_compile barco_open_chrome.py barco_player_control.py automation_server.py telegram_bot.py
 ```
 
 There is currently no automated test, build, migration, or deployment command.
@@ -77,6 +79,8 @@ set -a; source .env; set +a
 - Do not assume `.click()` returns an element; Selenium `.click()` returns `None`.
 - `div` and `span` values are read through `.text` or `get_attribute(...)`, not `.value`.
 - Logs must remain enabled; failures are diagnosed from `automation_artifacts/barco_automation.log` on the remote workstation.
+- Player/Control buttons are toggles. Never click lamp, dowser, or Scheduler blindly; read `g_MainStatusModel`, issue only the necessary transition, and wait for the confirmed target state.
+- The safe shutdown flow must end with `playerMode == 1`, `isProjectorLampOn == false`, and `isProjectorDowserClosed == true`.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
 - On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. Both cinema IPs need explicit host routes through the active Tailscale `utun` interface.
 - `selenium` and `openpyxl` are required, but no dependency lock file exists yet.

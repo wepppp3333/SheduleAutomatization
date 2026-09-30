@@ -12,6 +12,7 @@ from fastapi import FastAPI, Header, HTTPException
 
 BASE_DIR = Path(__file__).resolve().parent
 AUTOMATION_SCRIPT = BASE_DIR / "barco_open_chrome.py"
+PLAYER_CONTROL_SCRIPT = BASE_DIR / "barco_player_control.py"
 API_TOKEN = os.getenv("BARCO_API_TOKEN", "")
 
 app = FastAPI(title="Barco Schedule Automation", docs_url=None, redoc_url=None)
@@ -19,6 +20,7 @@ app = FastAPI(title="Barco Schedule Automation", docs_url=None, redoc_url=None)
 state_lock = threading.Lock()
 state = {
     "job_id": None,
+    "action": None,
     "status": "idle",
     "started_at": None,
     "finished_at": None,
@@ -38,12 +40,12 @@ def require_api_token(x_api_key: str):
         raise HTTPException(status_code=401, detail="Invalid API token")
 
 
-def run_automation(job_id: str):
+def run_automation(job_id: str, command: list[str]):
     global process
 
     try:
         process = subprocess.Popen(
-            [sys.executable, str(AUTOMATION_SCRIPT)],
+            command,
             cwd=BASE_DIR,
         )
         exit_code = process.wait()
@@ -58,6 +60,40 @@ def run_automation(job_id: str):
         with state_lock:
             state["finished_at"] = datetime.now().isoformat(timespec="seconds")
         process = None
+
+
+def start_job(action: str, command: list[str]):
+    with state_lock:
+        if state["status"] == "running":
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "message": "Automation is already running",
+                    "job_id": state["job_id"],
+                    "action": state["action"],
+                },
+            )
+
+        job_id = str(uuid4())
+        state.update(
+            {
+                "job_id": job_id,
+                "action": action,
+                "status": "running",
+                "started_at": datetime.now().isoformat(timespec="seconds"),
+                "finished_at": None,
+                "exit_code": None,
+                "error": None,
+            }
+        )
+
+    worker = threading.Thread(
+        target=run_automation,
+        args=(job_id, command),
+        daemon=True,
+    )
+    worker.start()
+    return {"status": "started", "job_id": job_id, "action": action}
 
 
 @app.get("/health")
@@ -82,25 +118,24 @@ def run_schedule(x_api_key: str = Header(default="")):
     if not AUTOMATION_SCRIPT.exists():
         raise HTTPException(status_code=500, detail="Automation script not found")
 
-    with state_lock:
-        if state["status"] == "running":
-            raise HTTPException(
-                status_code=409,
-                detail={"message": "Automation is already running", "job_id": state["job_id"]},
-            )
+    return start_job(
+        action="run-schedule",
+        command=[sys.executable, str(AUTOMATION_SCRIPT)],
+    )
 
-        job_id = str(uuid4())
-        state.update(
-            {
-                "job_id": job_id,
-                "status": "running",
-                "started_at": datetime.now().isoformat(timespec="seconds"),
-                "finished_at": None,
-                "exit_code": None,
-                "error": None,
-            }
-        )
 
-    worker = threading.Thread(target=run_automation, args=(job_id,), daemon=True)
-    worker.start()
-    return {"status": "started", "job_id": job_id}
+@app.post("/player/shutdown-and-schedule", status_code=202)
+def shutdown_player_and_enable_schedule(x_api_key: str = Header(default="")):
+    require_api_token(x_api_key)
+
+    if not PLAYER_CONTROL_SCRIPT.exists():
+        raise HTTPException(status_code=500, detail="Player control script not found")
+
+    return start_job(
+        action="shutdown-and-schedule",
+        command=[
+            sys.executable,
+            str(PLAYER_CONTROL_SCRIPT),
+            "shutdown-and-schedule",
+        ],
+    )

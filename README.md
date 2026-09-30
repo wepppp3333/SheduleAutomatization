@@ -55,6 +55,19 @@ Invoke-RestMethod `
   -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
 ```
 
+Безопасно остановить фильм, закрыть заслонку, выключить лампу и снова включить
+очередь:
+
+```powershell
+Invoke-RestMethod `
+  -Method Post `
+  -Uri "http://TAILSCALE_IP:8080/player/shutdown-and-schedule" `
+  -Headers @{"X-API-Key"="ВАШ_ТОКЕН"}
+```
+
+Операция выполняется асинхронно. Проверяйте результат через `/status` и журнал
+`automation_artifacts/barco_player_control.log`.
+
 ## Telegram-бот
 
 Создайте бота через `@BotFather`, затем задайте токен и API-токен кинотеатра:
@@ -77,4 +90,6 @@ Invoke-RestMethod `
 [Environment]::SetEnvironmentVariable("TELEGRAM_ALLOWED_USER_IDS", "ВАШ_TELEGRAM_ID", "User")
 ```
 
-После перезапуска команда `/start` покажет кнопки запуска и проверки статуса.
+После перезапуска команда `/start` покажет кнопки формирования расписания,
+безопасного выключения фильма и проверки статуса. Опасные операции требуют
+отдельного подтверждения.
