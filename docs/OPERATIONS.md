@@ -174,6 +174,29 @@ py -m pip install -r requirements.txt
 
 На Mac: остановите бота в его Terminal, выполните `git pull` из папки проекта, при необходимости обновите зависимости через `.venv/bin/python -m pip install -r requirements.txt` и запустите бота по разделу 4.
 
+### Лукоянов: автоматическое восстановление Tailscale-канала
+
+Если Mac перестаёт получать статус Лукоянова, а исходящий `tailscale ping` с Лукоянова до Mac восстанавливает связь, обновите проект на Лукоянове и один раз сохраните адрес Mac:
+
+```powershell
+cd C:\Users\Lukoyanov\Desktop\test\SheduleAutomatization
+git pull
+[Environment]::SetEnvironmentVariable("BARCO_TAILSCALE_KEEPALIVE_IP", "100.120.123.116", "User")
+```
+
+Перезапустите API: остановите прежнее окно через Ctrl+C, затем в новом PowerShell выполните:
+
+```powershell
+cd C:\Users\Lukoyanov\Desktop\test\SheduleAutomatization
+$env:BARCO_API_TOKEN = [Environment]::GetEnvironmentVariable("BARCO_API_TOKEN", "User")
+$env:BARCO_TAILSCALE_KEEPALIVE_IP = [Environment]::GetEnvironmentVariable("BARCO_TAILSCALE_KEEPALIVE_IP", "User")
+powershell -ExecutionPolicy Bypass -File .\start_automation_server.ps1
+```
+
+Строка `Tailscale keepalive enabled` подтверждает запуск фонового ping раз в минуту. Он работает только пока запущен API и останавливается вместе с ним. Переменная опциональная: на других компьютерах её не задавайте без аналогичной проблемы. Если Tailscale IP Mac изменится, обновите значение.
+
+Это обход нестабильного канала, а не доказательство причины. Для диагностики сети Лукоянова выполните `tailscale netcheck` на Windows и сравните результаты `tailscale ping 100.120.123.116` и доступа Mac к `/health` до/после ping.
+
 ## 9. Безопасная проверка связи
 
 На компьютере кинотеатра, в отдельном PowerShell:

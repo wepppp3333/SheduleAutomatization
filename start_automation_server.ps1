@@ -22,6 +22,30 @@ if (-not $tailscaleIp) {
 }
 
 Write-Host "Barco automation API: http://${tailscaleIp}:8080"
+$keepaliveJob = $null
+if ($env:BARCO_TAILSCALE_KEEPALIVE_IP) {
+    $keepaliveIp = $env:BARCO_TAILSCALE_KEEPALIVE_IP
+    if ($keepaliveIp -notmatch '^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.(\d{1,3})\.(\d{1,3})$') {
+        Write-Error "BARCO_TAILSCALE_KEEPALIVE_IP must be a Tailscale IPv4 address."
+    }
+
+    $keepaliveJob = Start-Job -ArgumentList $tailscaleExe, $keepaliveIp -ScriptBlock {
+        param($tailscalePath, $peerIp)
+        while ($true) {
+            & $tailscalePath ping --timeout 5s --c 1 $peerIp *> $null
+            Start-Sleep -Seconds 60
+        }
+    }
+    Write-Host "Tailscale keepalive enabled for $keepaliveIp (every 60 seconds)."
+}
+
 # Listen on every local interface so Windows accepts connections arriving
 # through the Tailscale adapter as well as local health checks.
-py -m uvicorn automation_server:app --host 0.0.0.0 --port 8080
+try {
+    py -m uvicorn automation_server:app --host 0.0.0.0 --port 8080
+} finally {
+    if ($keepaliveJob) {
+        $keepaliveJob | Stop-Job
+        $keepaliveJob | Remove-Job
+    }
+}
