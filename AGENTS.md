@@ -84,12 +84,14 @@ set -a; source .env; set +a
 - The disable-projector flow does not send Stop and must end with Scheduler disabled, lamp off, and dowser closed.
 - The stop-and-disable flow sends Stop once when needed and must end with playback stopped, Scheduler disabled, lamp off, and dowser closed.
 - Credentials and the private URL are currently hard-coded. Do not publish real replacements or add new secrets to Git.
-- On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. Both cinema IPs need explicit host routes through the active Tailscale `utun` interface.
+- On the current Mac host, `VPSUS` is needed for Telegram but conflicts with Tailscale's `100.64.0.0/10` route. All three cinema IPs need explicit host routes through the active Tailscale `utun` interface.
 - `selenium` and `openpyxl` are required, but no dependency lock file exists yet.
 - The bundled driver supports Chrome 153. If Chrome updates to another major version, replace the binary or set `CHROMEDRIVER_PATH`; Selenium Manager is the fallback.
 - The tracked `__pycache__/barco_open_chrome.cpython-314.pyc` is generated output and should not be treated as source.
 
 # Docs Links
+
+- Operator startup, updates, networking, and troubleshooting: [docs/OPERATIONS.md](docs/OPERATIONS.md)
 
 - Architecture and runtime flow: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)
 
