@@ -11,6 +11,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 - `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
 - `cinemas.json` -> non-secret cinema labels, Tailscale API URLs, and names of token environment variables.
 - `start_telegram_bot.ps1` -> validates required environment variables and starts the Telegram bot.
+- `Запустить Barco Bot.command` -> macOS double-click launcher for the local Telegram bot; avoids duplicate processes and loads `.env`.
 - `requirements.txt` -> Python runtime dependencies for automation and the API handler.
 - `README.md` -> minimal repository title; not yet a setup guide.
 - `test.html` -> unrelated HTML scratch file; not used by the Python automation.
