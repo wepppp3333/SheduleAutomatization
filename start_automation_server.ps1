@@ -2,7 +2,23 @@ $ErrorActionPreference = "Stop"
 Set-Location $PSScriptRoot
 
 if (-not $env:BARCO_API_TOKEN) {
+    $env:BARCO_API_TOKEN = [Environment]::GetEnvironmentVariable("BARCO_API_TOKEN", "User")
+}
+if (-not $env:BARCO_API_TOKEN) {
     Write-Error "Set BARCO_API_TOKEN before starting the server."
+}
+if (-not $env:BARCO_TAILSCALE_KEEPALIVE_IP) {
+    $env:BARCO_TAILSCALE_KEEPALIVE_IP = [Environment]::GetEnvironmentVariable(
+        "BARCO_TAILSCALE_KEEPALIVE_IP", "User"
+    )
+}
+
+$listener = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue |
+    Select-Object -First 1
+if ($listener) {
+    Write-Host "Port 8080 is already in use (PID $($listener.OwningProcess))."
+    Write-Host "If the Barco API is already running, use its existing window."
+    exit 0
 }
 
 $tailscaleCommand = Get-Command "tailscale.exe" -ErrorAction SilentlyContinue
