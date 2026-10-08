@@ -9,6 +9,7 @@ Automation script that reads a cinema schedule from Excel and enters shows into 
 - `automation_server.py` -> authenticated FastAPI handler for remote runs over Tailscale; prevents concurrent automation jobs.
 - `start_automation_server.ps1` -> discovers the computer's Tailscale IPv4 address and starts the handler on all local interfaces, port 8080; optional `BARCO_TAILSCALE_KEEPALIVE_IP` runs periodic outbound Tailscale ping while the API runs.
 - `Start Barco API.cmd` -> Windows double-click launcher for the local API; `start_automation_server.ps1` loads user-scoped tokens and checks port 8080.
+- `Install Barco API Autostart.cmd` and `install_automation_autostart.ps1` -> create a per-user Windows Startup shortcut to the project-relative API launcher.
 - `telegram_bot.py` -> allowlisted Telegram control panel for starting and checking cinema automation jobs.
 - `cinemas.json` -> non-secret cinema labels, Tailscale API URLs, and names of token environment variables.
 - `start_telegram_bot.ps1` -> validates required environment variables and starts the Telegram bot.

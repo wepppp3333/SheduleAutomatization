@@ -32,9 +32,27 @@ if (-not (Test-Path $tailscaleExe)) {
     Write-Error "tailscale.exe was not found. Install or start Tailscale first."
 }
 
-$tailscaleIp = (& $tailscaleExe ip -4 | Select-Object -First 1).Trim()
+$tailscaleIp = $null
+for ($attempt = 1; $attempt -le 24; $attempt++) {
+    try {
+        $address = & $tailscaleExe ip -4 2>$null | Select-Object -First 1
+        if ($address) {
+            $tailscaleIp = $address.Trim()
+            break
+        }
+    } catch {
+        # Tailscale may still be starting during Windows sign-in.
+    }
+
+    if ($attempt -lt 24) {
+        if ($attempt -eq 1) {
+            Write-Host "Waiting for Tailscale to connect..."
+        }
+        Start-Sleep -Seconds 5
+    }
+}
 if (-not $tailscaleIp) {
-    Write-Error "Tailscale IPv4 address was not found. Start Tailscale first."
+    Write-Error "Tailscale IPv4 address was not found after 2 minutes. Check Tailscale."
 }
 
 Write-Host "Barco automation API: http://${tailscaleIp}:8080"
